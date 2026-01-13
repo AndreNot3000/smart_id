@@ -91,7 +91,7 @@ export default function VerifyOTPPage() {
             </div>
             <span className="text-2xl font-bold text-white">Campus ID</span>
           </Link>
-        </div>
+        </div>  b
 
         {/* Main Card */}
         <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50">

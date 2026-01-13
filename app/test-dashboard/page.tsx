@@ -3,10 +3,25 @@
 import Link from "next/link";
 import { useState } from "react";
 
+// Define the Event type
+type Event = {
+  id: number;
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  speakers: string[];
+  category: string;
+  registrationRequired: boolean;
+  capacity: number;
+  registered: number;
+};
+
 export default function TestDashboard() {
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showBarcode, setShowBarcode] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
 
@@ -17,7 +32,7 @@ export default function TestDashboard() {
     university: 'Harvard University',
     course: 'Computer Science',
     year: 'Junior',
-    semester: '5th Semester',
+    semester: '2nd Semester',
     walletBalance: 24550.00,
     cgpa: 3.75,
     avatar: 'JD',
@@ -194,7 +209,7 @@ export default function TestDashboard() {
               <div>
                 <p className="text-slate-400 text-sm mb-2">Speakers</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedEvent.speakers.map((speaker, index) => (
+                  {selectedEvent.speakers.map((speaker: string, index: number) => (
                     <span key={index} className="bg-slate-700 text-slate-300 px-3 py-1 rounded-full text-sm">
                       {speaker}
                     </span>
@@ -242,7 +257,7 @@ export default function TestDashboard() {
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800/90 backdrop-blur-sm border-r border-slate-700/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800/95 backdrop-blur-sm border-r border-slate-700/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
           <Link href="/" className="flex items-center space-x-2">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -261,15 +276,15 @@ export default function TestDashboard() {
         </div>
 
         {/* User Profile */}
-        <div className="p-6 border-b border-slate-700/50">
+        <div className="p-4 sm:p-6 border-b border-slate-700/50">
           <div className="flex items-center space-x-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold">{studentData.avatar}</span>
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-sm sm:text-base">{studentData.avatar}</span>
             </div>
-            <div>
-              <h3 className="text-white font-semibold">{studentData.name}</h3>
-              <p className="text-slate-400 text-sm">{studentData.course}</p>
-              <p className="text-slate-500 text-xs">{studentData.semester}</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-white font-semibold text-sm sm:text-base truncate">{studentData.name}</h3>
+              <p className="text-slate-400 text-xs sm:text-sm truncate">{studentData.course}</p>
+              <p className="text-slate-500 text-xs truncate">{studentData.semester}</p>
             </div>
           </div>
         </div>
@@ -284,7 +299,7 @@ export default function TestDashboard() {
                     setActiveSection(item.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center space-x-3 px-3 sm:px-4 py-3 sm:py-3 rounded-lg text-left transition-colors touch-manipulation ${
                     activeSection === item.id
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
                       : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
@@ -310,44 +325,65 @@ export default function TestDashboard() {
       {/* Main Content */}
       <div className="lg:ml-64">
         {/* Header */}
-        <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4">
+        <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-slate-400 hover:text-white"
+                className="lg:hidden text-slate-400 hover:text-white p-1"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                 </svg>
               </button>
-              <h1 className="text-2xl font-bold text-white capitalize">{activeSection.replace('-', ' ')}</h1>
+              <h1 className="text-lg sm:text-2xl font-bold text-white capitalize truncate">{activeSection.replace('-', ' ')}</h1>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Mobile Layout */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              {/* Show ID Button */}
               <button
                 onClick={() => setShowBarcode(true)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-2 sm:px-4 py-2 rounded-lg transition-colors flex items-center space-x-1 sm:space-x-2"
               >
-                <span>📱</span>
-                <span className="hidden sm:inline">Show ID</span>
+                <span className="text-sm">📱</span>
+                <span className="hidden sm:inline text-sm">Show ID</span>
               </button>
-              <div className="text-right">
-                <p className="text-white font-semibold">₦{studentData.walletBalance.toLocaleString()}</p>
-                <p className="text-slate-400 text-sm">Balance</p>
+              
+              {/* Stats - Hidden on very small screens, compact on small screens */}
+              <div className="hidden xs:flex items-center space-x-2 sm:space-x-4">
+                <div className="text-right">
+                  <p className="text-white font-semibold text-sm sm:text-base">₦{studentData.walletBalance.toLocaleString()}</p>
+                  <p className="text-slate-400 text-xs sm:text-sm hidden sm:block">Balance</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-semibold text-sm sm:text-base">{studentData.cgpa}</p>
+                  <p className="text-slate-400 text-xs sm:text-sm hidden sm:block">CGPA</p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-white font-semibold">{studentData.cgpa}</p>
-                <p className="text-slate-400 text-sm">CGPA</p>
+              
+              {/* Avatar */}
+              <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm sm:text-base">{studentData.avatar}</span>
               </div>
-              <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">{studentData.avatar}</span>
-              </div>
+            </div>
+          </div>
+          
+          {/* Mobile Stats Row - Shows on very small screens */}
+          <div className="flex xs:hidden justify-center space-x-6 mt-3 pt-3 border-t border-slate-700/50">
+            <div className="text-center">
+              <p className="text-white font-semibold text-sm">₦{studentData.walletBalance.toLocaleString()}</p>
+              <p className="text-slate-400 text-xs">Balance</p>
+            </div>
+            <div className="text-center">
+              <p className="text-white font-semibold text-sm">{studentData.cgpa}</p>
+              <p className="text-slate-400 text-xs">CGPA</p>
             </div>
           </div>
         </header>
 
         {/* Content */}
-        <main className="p-6">
+        <main className="p-4 sm:p-6">
           {activeSection === 'overview' && (
             <div className="space-y-6">
               {/* Welcome Card */}
@@ -367,97 +403,97 @@ export default function TestDashboard() {
               {/* Quick Actions */}
               <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
                 <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
                   {quickActions.map((action) => (
                     <button
                       key={action.id}
                       onClick={() => handleQuickAction(action.id)}
-                      className={`btn-primary bg-gradient-to-r ${action.color} hover:scale-105 text-white p-4 rounded-lg text-center transition-all duration-300`}
+                      className={`btn-primary bg-gradient-to-r ${action.color} hover:scale-105 text-white p-3 sm:p-4 rounded-lg text-center transition-all duration-300 touch-manipulation`}
                     >
-                      <div className="text-2xl mb-2">{action.icon}</div>
-                      <div className="font-medium text-sm">{action.name}</div>
+                      <div className="text-xl sm:text-2xl mb-2">{action.icon}</div>
+                      <div className="font-medium text-xs sm:text-sm">{action.name}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-slate-400 text-sm">Wallet Balance</p>
-                      <p className="text-2xl font-bold text-white">₦{studentData.walletBalance.toLocaleString()}</p>
-                      <p className="text-green-400 text-sm">+₦5,000 this week</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-slate-400 text-xs sm:text-sm">Wallet Balance</p>
+                      <p className="text-xl sm:text-2xl font-bold text-white truncate">₦{studentData.walletBalance.toLocaleString()}</p>
+                      <p className="text-green-400 text-xs sm:text-sm">+₦5,000 this week</p>
                     </div>
-                    <div className="h-12 w-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-xl">💳</span>
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-lg sm:text-xl">💳</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
+                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-slate-400 text-sm">Current CGPA</p>
-                      <p className="text-2xl font-bold text-white">{studentData.cgpa}</p>
-                      <p className="text-blue-400 text-sm">Target: 4.0</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-slate-400 text-xs sm:text-sm">Current CGPA</p>
+                      <p className="text-xl sm:text-2xl font-bold text-white">{studentData.cgpa}</p>
+                      <p className="text-blue-400 text-xs sm:text-sm">Target: 4.0</p>
                     </div>
-                    <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-xl">📚</span>
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-lg sm:text-xl">📚</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
+                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-slate-400 text-sm">Attendance</p>
-                      <p className="text-2xl font-bold text-white">89%</p>
-                      <p className="text-yellow-400 text-sm">Above average</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-slate-400 text-xs sm:text-sm">Attendance</p>
+                      <p className="text-xl sm:text-2xl font-bold text-white">89%</p>
+                      <p className="text-yellow-400 text-xs sm:text-sm">Above average</p>
                     </div>
-                    <div className="h-12 w-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-xl">📅</span>
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-lg sm:text-xl">📅</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
+                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-slate-400 text-sm">Rewards Points</p>
-                      <p className="text-2xl font-bold text-white">1,250</p>
-                      <p className="text-purple-400 text-sm">+50 today</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-slate-400 text-xs sm:text-sm">Rewards Points</p>
+                      <p className="text-xl sm:text-2xl font-bold text-white">1,250</p>
+                      <p className="text-purple-400 text-xs sm:text-sm">+50 today</p>
                     </div>
-                    <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-xl">🏆</span>
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-lg sm:text-xl">🏆</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Recent Activity & Upcoming Events */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
                 {/* Recent Transactions */}
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
-                  <h3 className="text-lg font-bold text-white mb-4">Recent Transactions</h3>
+                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
+                  <h3 className="text-base sm:text-lg font-bold text-white mb-4">Recent Transactions</h3>
                   <div className="space-y-3">
                     {recentTransactions.map((transaction) => (
                       <div key={transaction.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                             transaction.status === 'completed' ? 'bg-green-900/30' : 'bg-yellow-900/30'
                           }`}>
                             <span className={transaction.status === 'completed' ? 'text-green-400' : 'text-yellow-400'}>
                               {transaction.status === 'completed' ? '✓' : '⏳'}
                             </span>
                           </div>
-                          <div>
-                            <p className="text-white font-medium">{transaction.type}</p>
-                            <p className="text-slate-400 text-sm">{transaction.location} • {transaction.time}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-medium text-sm sm:text-base truncate">{transaction.type}</p>
+                            <p className="text-slate-400 text-xs sm:text-sm truncate">{transaction.location} • {transaction.time}</p>
                           </div>
                         </div>
-                        <div className={`font-bold ${transaction.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`font-bold text-sm sm:text-base flex-shrink-0 ${transaction.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {transaction.amount > 0 ? '+' : ''}₦{Math.abs(transaction.amount).toLocaleString()}
                         </div>
                       </div>
@@ -466,21 +502,21 @@ export default function TestDashboard() {
                 </div>
 
                 {/* Upcoming Events */}
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
-                  <h3 className="text-lg font-bold text-white mb-4">Upcoming Events</h3>
+                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
+                  <h3 className="text-base sm:text-lg font-bold text-white mb-4">Upcoming Events</h3>
                   <div className="space-y-3">
                     {upcomingEvents.map((event) => (
                       <div 
                         key={event.id} 
-                        className="p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer"
+                        className="p-3 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors cursor-pointer touch-manipulation"
                         onClick={() => setSelectedEvent(event)}
                       >
                         <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-white font-medium">{event.title}</p>
-                            <p className="text-slate-400 text-sm">{event.date} • {event.location}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-medium text-sm sm:text-base truncate">{event.title}</p>
+                            <p className="text-slate-400 text-xs sm:text-sm truncate">{event.date} • {event.location}</p>
                           </div>
-                          <span className="text-blue-400 text-sm">View Details →</span>
+                          <span className="text-blue-400 text-xs sm:text-sm flex-shrink-0 ml-2">View Details →</span>
                         </div>
                       </div>
                     ))}
@@ -494,7 +530,7 @@ export default function TestDashboard() {
             <div className="space-y-6">
               <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
                 <h2 className="text-xl font-bold text-white mb-6">Campus Events</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
                   {upcomingEvents.map((event) => (
                     <div 
                       key={event.id}
@@ -527,35 +563,35 @@ export default function TestDashboard() {
 
           {activeSection === 'qr-code' && (
             <div className="space-y-6">
-              <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50">
+              <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 sm:p-8 rounded-2xl border border-slate-700/50">
                 <div className="text-center">
-                  <h2 className="text-2xl font-bold text-white mb-6">My Digital ID</h2>
-                  <div className="bg-white rounded-lg p-6 max-w-sm mx-auto mb-6">
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">My Digital ID</h2>
+                  <div className="bg-white rounded-lg p-4 sm:p-6 max-w-sm mx-auto mb-6">
                     <img src={studentData.barcode} alt="Student Barcode" className="w-full h-auto" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4 max-w-md mx-auto text-left">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto text-left">
                     <div>
                       <p className="text-slate-400 text-sm">Name</p>
-                      <p className="text-white font-medium">{studentData.name}</p>
+                      <p className="text-white font-medium text-sm sm:text-base truncate">{studentData.name}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 text-sm">Student ID</p>
-                      <p className="text-white font-mono">{studentData.id}</p>
+                      <p className="text-white font-mono text-sm sm:text-base">{studentData.id}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 text-sm">Course</p>
-                      <p className="text-white">{studentData.course}</p>
+                      <p className="text-white text-sm sm:text-base truncate">{studentData.course}</p>
                     </div>
                     <div>
                       <p className="text-slate-400 text-sm">Year</p>
-                      <p className="text-white">{studentData.year}</p>
+                      <p className="text-white text-sm sm:text-base">{studentData.year}</p>
                     </div>
                   </div>
-                  <div className="flex gap-4 justify-center mt-6">
-                    <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors">
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
+                    <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors touch-manipulation">
                       Download QR
                     </button>
-                    <button className="border border-slate-600 text-slate-300 px-6 py-2 rounded-lg hover:bg-slate-700/50 transition-colors">
+                    <button className="border border-slate-600 text-slate-300 px-6 py-2 rounded-lg hover:bg-slate-700/50 transition-colors touch-manipulation">
                       Share
                     </button>
                   </div>

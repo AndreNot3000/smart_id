@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
   const [activeTab, setActiveTab] = useState<'signup' | 'signin'>('signup');
-  const [userType, setUserType] = useState<'student' | 'admin'>('student');
+  const [userType, setUserType] = useState<'student' | 'admin' | 'lecturer'>('student');
   const router = useRouter();
 
   return (
@@ -90,10 +90,10 @@ export default function SignupPage() {
               <label className="block text-sm font-medium text-slate-300 mb-3">
                 I am a:
               </label>
-              <div className="flex bg-slate-800/50 backdrop-blur-sm rounded-lg p-1">
+              <div className="grid grid-cols-3 bg-slate-800/50 backdrop-blur-sm rounded-lg p-1 gap-1">
                 <button
                   onClick={() => setUserType('student')}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 ${
+                  className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
                     userType === 'student'
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                       : 'text-slate-300 hover:text-white'
@@ -102,8 +102,18 @@ export default function SignupPage() {
                   🎓 Student
                 </button>
                 <button
+                  onClick={() => setUserType('lecturer')}
+                  className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
+                    userType === 'lecturer'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                      : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  👨‍🏫 Lecturer
+                </button>
+                <button
                   onClick={() => setUserType('admin')}
-                  className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-300 ${
+                  className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
                     userType === 'admin'
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                       : 'text-slate-300 hover:text-white'
@@ -229,7 +239,7 @@ export default function SignupPage() {
   );
 }
 
-function SignupForm({ userType, router }: { userType: 'student' | 'admin', router: any }) {
+function SignupForm({ userType, router }: { userType: 'student' | 'admin' | 'lecturer', router: any }) {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -263,7 +273,7 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
   return (
     <div>
       <h3 className="text-2xl font-bold text-white mb-6">
-        Create {userType === 'student' ? 'Student' : 'Admin'} Account
+        Create {userType === 'student' ? 'Student' : userType === 'lecturer' ? 'Lecturer' : 'Admin'} Account
       </h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -299,7 +309,7 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
         
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            {userType === 'student' ? 'Student Email' : 'Work Email'}
+            {userType === 'student' ? 'Student Email' : userType === 'lecturer' ? 'Academic Email' : 'Work Email'}
           </label>
           <input
             type="email"
@@ -308,7 +318,7 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
             onChange={handleInputChange}
             required
             className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-            placeholder={userType === 'student' ? 'john.doe@university.edu' : 'john.doe@university.edu'}
+            placeholder={userType === 'student' ? 'john.doe@university.edu' : userType === 'lecturer' ? 'prof.doe@university.edu' : 'john.doe@university.edu'}
           />
         </div>
 
@@ -325,6 +335,21 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
               required
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
               placeholder="STU123456789"
+            />
+          </div>
+        ) : userType === 'lecturer' ? (
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Faculty ID
+            </label>
+            <input
+              type="text"
+              name="id"
+              value={formData.id}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+              placeholder="FAC123456789"
             />
           </div>
         ) : (
@@ -364,10 +389,10 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
           </select>
         </div>
 
-        {userType === 'admin' && (
+        {(userType === 'admin' || userType === 'lecturer') && (
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
-              Department
+              {userType === 'lecturer' ? 'Department' : 'Department'}
             </label>
             <select 
               name="department"
@@ -377,12 +402,30 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
             >
               <option value="">Select your department</option>
-              <option value="it">IT Services</option>
-              <option value="student-affairs">Student Affairs</option>
-              <option value="security">Campus Security</option>
-              <option value="finance">Finance</option>
-              <option value="registrar">Registrar</option>
-              <option value="other">Other</option>
+              {userType === 'lecturer' ? (
+                <>
+                  <option value="computer-science">Computer Science</option>
+                  <option value="mathematics">Mathematics</option>
+                  <option value="physics">Physics</option>
+                  <option value="chemistry">Chemistry</option>
+                  <option value="biology">Biology</option>
+                  <option value="engineering">Engineering</option>
+                  <option value="business">Business Administration</option>
+                  <option value="psychology">Psychology</option>
+                  <option value="english">English Literature</option>
+                  <option value="history">History</option>
+                  <option value="other">Other</option>
+                </>
+              ) : (
+                <>
+                  <option value="it">IT Services</option>
+                  <option value="student-affairs">Student Affairs</option>
+                  <option value="security">Campus Security</option>
+                  <option value="finance">Finance</option>
+                  <option value="registrar">Registrar</option>
+                  <option value="other">Other</option>
+                </>
+              )}
             </select>
           </div>
         )}
@@ -414,7 +457,7 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
               Creating Account...
             </div>
           ) : (
-            `Create ${userType === 'student' ? 'Student' : 'Admin'} Account`
+            `Create ${userType === 'student' ? 'Student' : userType === 'lecturer' ? 'Lecturer' : 'Admin'} Account`
           )}
         </button>
       </form>
@@ -422,7 +465,7 @@ function SignupForm({ userType, router }: { userType: 'student' | 'admin', route
   );
 }
 
-function SigninForm({ userType, router }: { userType: 'student' | 'admin', router: any }) {
+function SigninForm({ userType, router }: { userType: 'student' | 'admin' | 'lecturer', router: any }) {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     emailOrId: '',
@@ -444,8 +487,14 @@ function SigninForm({ userType, router }: { userType: 'student' | 'admin', route
 
     // Simulate API call for sign in
     setTimeout(() => {
-      // Navigate to dashboard or appropriate page
-      router.push('/test-dashboard');
+      // Navigate to appropriate dashboard based on user type
+      if (userType === 'lecturer') {
+        router.push('/lecturer-dashboard');
+      } else if (userType === 'admin') {
+        router.push('/admin-dashboard');
+      } else {
+        router.push('/test-dashboard');
+      }
       setIsLoading(false);
     }, 2000);
   };
@@ -453,12 +502,12 @@ function SigninForm({ userType, router }: { userType: 'student' | 'admin', route
   return (
     <div>
       <h3 className="text-2xl font-bold text-white mb-6">
-        {userType === 'student' ? 'Student' : 'Admin'} Sign In
+        {userType === 'student' ? 'Student' : userType === 'lecturer' ? 'Lecturer' : 'Admin'} Sign In
       </h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            {userType === 'student' ? 'Email or Student ID' : 'Email or Employee ID'}
+            {userType === 'student' ? 'Email or Student ID' : userType === 'lecturer' ? 'Email or Faculty ID' : 'Email or Employee ID'}
           </label>
           <input
             type="text"
@@ -467,7 +516,7 @@ function SigninForm({ userType, router }: { userType: 'student' | 'admin', route
             onChange={handleInputChange}
             required
             className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-            placeholder={userType === 'student' ? 'john.doe@university.edu or STU123456789' : 'john.doe@university.edu or EMP123456789'}
+            placeholder={userType === 'student' ? 'john.doe@university.edu or STU123456789' : userType === 'lecturer' ? 'prof.doe@university.edu or FAC123456789' : 'john.doe@university.edu or EMP123456789'}
           />
         </div>
 
@@ -513,7 +562,7 @@ function SigninForm({ userType, router }: { userType: 'student' | 'admin', route
               Signing In...
             </div>
           ) : (
-            `Sign In as ${userType === 'student' ? 'Student' : 'Admin'}`
+            `Sign In as ${userType === 'student' ? 'Student' : userType === 'lecturer' ? 'Lecturer' : 'Admin'}`
           )}
         </button>
       </form>

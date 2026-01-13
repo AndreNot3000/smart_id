@@ -12,14 +12,25 @@ export default function BarcodeGenerationPage() {
     uniqueNumber: '',
     name: 'John Doe',
     email: 'john.doe@university.edu',
-    university: 'Harvard University'
+    university: 'Harvard University',
+    userType: 'student' // This would come from signup context
   });
   const router = useRouter();
 
   useEffect(() => {
     // Simulate barcode generation
     setTimeout(() => {
-      const uniqueId = `STU${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      const userType = studentData.userType; // This would come from signup context
+      let uniqueId = '';
+      
+      if (userType === 'student') {
+        uniqueId = `STU${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      } else if (userType === 'lecturer') {
+        uniqueId = `FAC${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      } else {
+        uniqueId = `EMP${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+      }
+      
       const uniqueNumber = Math.random().toString().substr(2, 8);
       
       setStudentData(prev => ({
@@ -50,7 +61,14 @@ export default function BarcodeGenerationPage() {
   };
 
   const handleContinue = () => {
-    router.push('/dashboard');
+    // Redirect based on user type
+    if (studentData.userType === 'lecturer') {
+      router.push('/lecturer-dashboard');
+    } else if (studentData.userType === 'admin') {
+      router.push('/admin-dashboard');
+    } else {
+      router.push('/test-dashboard');
+    }
   };
 
   const handleDownload = () => {
@@ -132,7 +150,10 @@ export default function BarcodeGenerationPage() {
           {/* Credentials */}
           <div className="space-y-4">
             <div className="bg-slate-700/50 rounded-lg p-4">
-              <label className="block text-sm font-medium text-slate-300 mb-1">Student ID</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">
+                {studentData.userType === 'student' ? 'Student ID' : 
+                 studentData.userType === 'lecturer' ? 'Faculty ID' : 'Employee ID'}
+              </label>
               <div className="flex items-center justify-between">
                 <span className="text-white font-mono text-lg">{studentData.id}</span>
                 <button 
@@ -171,7 +192,7 @@ export default function BarcodeGenerationPage() {
               <div>
                 <p className="text-amber-300 text-sm font-medium mb-1">Important</p>
                 <p className="text-amber-200 text-sm">
-                  Save these credentials safely. You'll use your Student ID or Login Number along with your password to sign in.
+                  Save these credentials safely. You'll use your {studentData.userType === 'student' ? 'Student' : studentData.userType === 'lecturer' ? 'Faculty' : 'Employee'} ID or Login Number along with your password to sign in.
                 </p>
               </div>
             </div>
@@ -190,11 +211,12 @@ export default function BarcodeGenerationPage() {
             Download Barcode
           </button>
           
-          <Link href="/test-dashboard" className="block w-full">
-            <button className="btn-primary w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-3 rounded-lg font-semibold">
-              Continue to Dashboard
-            </button>
-          </Link>
+          <button
+            onClick={handleContinue}
+            className="btn-primary w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-3 rounded-lg font-semibold"
+          >
+            Continue to Dashboard
+          </button>
         </div>
 
         {/* Help Text */}
