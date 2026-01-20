@@ -1,45 +1,145 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+// API Response Types
+interface LecturerProfile {
+  id: string;
+  email: string;
+  userType: string;
+  status: string;
+  profile: {
+    firstName: string;
+    lastName: string;
+    lecturerId: string;
+    department: string;
+    role: string;
+    specialization: string;
+    avatar: string;
+    universityName: string;
+  };
+}
+
+interface Course {
+  id: number;
+  name: string;
+  code: string;
+  semester: string;
+  students: number;
+  schedule: string;
+  room: string;
+  nextClass: string;
+  attendance: number;
+  assignments: number;
+  weeklySchedule: {
+    day: string;
+    time: string;
+    topic: string;
+  }[];
+  description: string;
+}
+
+interface ScannedStudent {
+  id: number;
+  name: string;
+  studentId: string;
+  time: string;
+}
 
 export default function LecturerDashboard() {
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedClass, setSelectedClass] = useState<Course | null>(null);
   const [showQRCode, setShowQRCode] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [scannedStudents, setScannedStudents] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-
-  const lecturerData = {
-    name: 'Dr. Sarah Johnson',
-    id: 'FAC123456789',
-    email: 'sarah.johnson@university.edu',
-    university: 'Harvard University',
-    department: 'Computer Science',
-    title: 'Associate Professor',
+  const [scannedStudents, setScannedStudents] = useState<ScannedStudent[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  
+  // Data states
+  const [lecturerData, setLecturerData] = useState({
+    name: '',
+    id: '',
+    email: '',
+    university: '',
+    department: '',
+    title: '',
+    role: '',
+    specialization: '',
     officeHours: 'Mon-Wed 2:00-4:00 PM',
-    avatar: 'SJ',
+    avatar: '',
     qrCode: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iODAiIGZpbGw9IndoaXRlIi8+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjMiIGhlaWdodD0iNjAiIGZpbGw9ImJsYWNrIi8+PHJlY3QgeD0iOCIgeT0iMCIgd2lkdGg9IjIiIGhlaWdodD0iNjAiIGZpbGw9ImJsYWNrIi8+PHJlY3QgeD0iMTYiIHk9IjAiIHdpZHRoPSI0IiBoZWlnaHQ9IjYwIiBmaWxsPSJibGFjayIvPjx0ZXh0IHg9IjEwMCIgeT0iNzUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iOCIgZmlsbD0iYmxhY2siPkZBQzEyMzQ1Njc4OTwvdGV4dD48L3N2Zz4='
-  };
+  });
+  
+  // UI states
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const menuItems = [
-    { id: 'overview', name: 'Overview', icon: '📊' },
-    { id: 'qr-scanner', name: 'QR Scanner', icon: '📱' },
-    { id: 'attendance', name: 'Attendance Management', icon: '📋' },
-    { id: 'courses', name: 'Weekly Courses', icon: '📚' },
-    { id: 'grades', name: 'Grades & Assessment', icon: '📝' },
-    { id: 'students', name: 'Student Records', icon: '👥' },
-    { id: 'schedule', name: 'Class Schedule', icon: '📅' },
-    { id: 'announcements', name: 'Announcements', icon: '📢' },
-    { id: 'office-hours', name: 'Office Hours', icon: '🕐' },
-    { id: 'reports', name: 'Reports & Analytics', icon: '📈' },
-    { id: 'qr-code', name: 'My QR Code', icon: '🆔' },
-    { id: 'settings', name: 'Settings', icon: '⚙️' }
-  ];
+  // Fetch lecturer profile data
+  useEffect(() => {
+    const fetchLecturerData = async () => {
+      try {
+        const token = sessionStorage.getItem('accessToken');
+        const userData = sessionStorage.getItem('user');
+        
+        console.log('Lecturer Dashboard - Token:', token ? 'Present' : 'Missing');
+        console.log('Lecturer Dashboard - User Data:', userData);
+        
+        if (!token) {
+          router.push('/login');
+          return;
+        }
 
-  const classes = [
+        const response = await fetch('http://localhost:8000/api/users/profile', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.status === 401) {
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('refreshToken');
+          sessionStorage.removeItem('user');
+          router.push('/login');
+          return;
+        }
+
+        if (response.ok) {
+          const profileData: LecturerProfile = await response.json();
+          
+          setLecturerData({
+            name: `${profileData.profile.firstName} ${profileData.profile.lastName}`,
+            id: profileData.profile.lecturerId,
+            email: profileData.email,
+            university: profileData.profile.universityName,
+            department: profileData.profile.department,
+            title: `${profileData.profile.role}. ${profileData.profile.firstName} ${profileData.profile.lastName}`,
+            role: profileData.profile.role,
+            specialization: profileData.profile.specialization,
+            officeHours: 'Mon-Wed 2:00-4:00 PM',
+            avatar: profileData.profile.avatar,
+            qrCode: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iODAiIGZpbGw9IndoaXRlIi8+PHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjMiIGhlaWdodD0iNjAiIGZpbGw9ImJsYWNrIi8+PHJlY3QgeD0iOCIgeT0iMCIgd2lkdGg9IjIiIGhlaWdodD0iNjAiIGZpbGw9ImJsYWNrIi8+PHJlY3QgeD0iMTYiIHk9IjAiIHdpZHRoPSI0IiBoZWlnaHQ9IjYwIiBmaWxsPSJibGFjayIvPjx0ZXh0IHg9IjEwMCIgeT0iNzUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iOCIgZmlsbD0iYmxhY2siPkZBQzEyMzQ1Njc4OTwvdGV4dD48L3N2Zz4='
+          });
+        } else {
+          throw new Error('Failed to load profile data');
+        }
+
+      } catch (err: any) {
+        setError(err.message || 'Failed to load lecturer data');
+        console.error('Lecturer dashboard fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLecturerData();
+  }, [router]);
+
+  // Static data arrays (these would normally come from APIs)
+  const classes: Course[] = [
     {
       id: 1,
       name: 'Data Structures & Algorithms',
@@ -172,6 +272,21 @@ export default function LecturerDashboard() {
     { id: 'view-reports', name: 'View Reports', icon: '📈', color: 'from-yellow-600 to-orange-600' }
   ];
 
+  const menuItems = [
+    { id: 'overview', name: 'Overview', icon: '📊' },
+    { id: 'qr-scanner', name: 'QR Scanner', icon: '📱' },
+    { id: 'attendance', name: 'Attendance Management', icon: '📋' },
+    { id: 'courses', name: 'Weekly Courses', icon: '📚' },
+    { id: 'grades', name: 'Grades & Assessment', icon: '📝' },
+    { id: 'students', name: 'Student Records', icon: '👥' },
+    { id: 'schedule', name: 'Class Schedule', icon: '📅' },
+    { id: 'announcements', name: 'Announcements', icon: '📢' },
+    { id: 'office-hours', name: 'Office Hours', icon: '🕐' },
+    { id: 'reports', name: 'Reports & Analytics', icon: '📈' },
+    { id: 'qr-code', name: 'My QR Code', icon: '🆔' },
+    { id: 'settings', name: 'Settings', icon: '⚙️' }
+  ];
+
   const handleQuickAction = (actionId: string) => {
     if (actionId === 'start-scanner') {
       setActiveSection('qr-scanner');
@@ -182,6 +297,41 @@ export default function LecturerDashboard() {
     }
     // Handle other actions
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-white">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="h-16 w-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-white mb-2">Error Loading Dashboard</h3>
+          <p className="text-slate-400 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
@@ -446,10 +596,18 @@ export default function LecturerDashboard() {
 
         {/* Logout */}
         <div className="absolute bottom-4 left-4 right-4">
-          <Link href="/" className="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors">
+          <button 
+            onClick={() => {
+              sessionStorage.removeItem('accessToken');
+              sessionStorage.removeItem('refreshToken');
+              sessionStorage.removeItem('user');
+              router.push('/login');
+            }}
+            className="w-full flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors"
+          >
             <span className="text-lg">🚪</span>
             <span>Logout</span>
-          </Link>
+          </button>
         </div>
       </div>
 

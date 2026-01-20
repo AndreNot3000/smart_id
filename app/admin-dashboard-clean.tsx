@@ -39,27 +39,8 @@ interface Student {
   createdAt: string;
 }
 
-interface Lecturer {
-  id: string;
-  email: string;
-  lecturerId: string;
-  firstName: string;
-  lastName: string;
-  department: string;
-  role: string;
-  specialization: string;
-  status: string;
-  emailVerified: boolean;
-  createdAt: string;
-}
-
 interface StudentsResponse {
   students: Student[];
-  total: number;
-}
-
-interface LecturersResponse {
-  lecturers: Lecturer[];
   total: number;
 }
 
@@ -93,30 +74,23 @@ export default function AdminDashboard() {
   });
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
-  const [lecturers, setLecturers] = useState<Lecturer[]>([]);
   
   // UI states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [userModalType, setUserModalType] = useState<'student' | 'lecturer'>('student');
 
   // Fetch all dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = sessionStorage.getItem('accessToken');
-        const userData = sessionStorage.getItem('user');
-        
-        console.log('Admin Dashboard - Token:', token ? 'Present' : 'Missing');
-        console.log('Admin Dashboard - User Data:', userData);
-        
+        const token = localStorage.getItem('accessToken');
         if (!token) {
           router.push('/login');
           return;
         }
 
         // Fetch all data in parallel
-        const [profileRes, statsRes, studentsRes, lecturersRes] = await Promise.all([
+        const [profileRes, statsRes, studentsRes] = await Promise.all([
           fetch('http://localhost:8000/api/users/profile', {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -134,20 +108,14 @@ export default function AdminDashboard() {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
-          }),
-          fetch('http://localhost:8000/api/admin/lecturers', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
           })
         ]);
 
         // Check for authentication errors
-        if (profileRes.status === 401 || statsRes.status === 401 || studentsRes.status === 401 || lecturersRes.status === 401) {
-          sessionStorage.removeItem('accessToken');
-          sessionStorage.removeItem('refreshToken');
-          sessionStorage.removeItem('user');
+        if (profileRes.status === 401 || statsRes.status === 401 || studentsRes.status === 401) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
           router.push('/login');
           return;
         }
@@ -156,7 +124,6 @@ export default function AdminDashboard() {
         const profileData: AdminProfile = await profileRes.json();
         const statsData: DashboardStats = await statsRes.json();
         const studentsData: StudentsResponse = await studentsRes.json();
-        const lecturersData: LecturersResponse = await lecturersRes.json();
 
         // Set admin profile data
         if (profileRes.ok) {
@@ -178,11 +145,6 @@ export default function AdminDashboard() {
         // Set students data
         if (studentsRes.ok) {
           setStudents(studentsData.students);
-        }
-
-        // Set lecturers data
-        if (lecturersRes.ok) {
-          setLecturers(lecturersData.lecturers);
         }
 
       } catch (err: any) {
@@ -217,13 +179,10 @@ export default function AdminDashboard() {
     switch (actionId) {
       case 'add-student':
         setActiveSection('students');
-        setUserModalType('student');
         setShowUserModal(true);
         break;
       case 'add-lecturer':
         setActiveSection('lecturers');
-        setUserModalType('lecturer');
-        setShowUserModal(true);
         break;
       case 'manage-courses':
         setActiveSection('courses');
@@ -279,15 +238,14 @@ export default function AdminDashboard() {
         />
       )}
 
-      {/* User Creation Modal */}
+      {/* Student Creation Modal */}
       {showUserModal && (
-        <UserCreationModal
+        <StudentCreationModal
           isOpen={showUserModal}
           onClose={() => setShowUserModal(false)}
           institutionName={adminData.institution}
-          userType={userModalType}
           onSuccess={() => {
-            // Refresh data
+            // Refresh students list
             window.location.reload();
           }}
         />
@@ -354,9 +312,9 @@ export default function AdminDashboard() {
         <div className="absolute bottom-4 left-4 right-4">
           <button 
             onClick={() => {
-              sessionStorage.removeItem('accessToken');
-              sessionStorage.removeItem('refreshToken');
-              sessionStorage.removeItem('user');
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
+              localStorage.removeItem('user');
               router.push('/login');
             }}
             className="w-full flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors"
@@ -603,84 +561,8 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeSection === 'lecturers' && (
-            <div className="space-y-6">
-              <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-white">Lecturer Management</h2>
-                  <button 
-                    onClick={() => {
-                      setUserModalType('lecturer');
-                      setShowUserModal(true);
-                    }}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors"
-                  >
-                    Add New Lecturer
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {lecturers.length > 0 ? (
-                    lecturers.map((lecturer) => (
-                      <div 
-                        key={lecturer.id}
-                        className="bg-slate-700/30 rounded-lg p-4 hover:bg-slate-700/50 transition-colors"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h3 className="text-white font-semibold">{lecturer.firstName} {lecturer.lastName}</h3>
-                            <p className="text-slate-400 text-sm">{lecturer.lecturerId}</p>
-                          </div>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            lecturer.status === 'active' ? 'bg-green-900/30 text-green-400' :
-                            'bg-yellow-900/30 text-yellow-400'
-                          }`}>
-                            {lecturer.status}
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Email:</span>
-                            <span className="text-white truncate ml-2">{lecturer.email}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Department:</span>
-                            <span className="text-white">{lecturer.department}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Role:</span>
-                            <span className="text-white">{lecturer.role}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Specialization:</span>
-                            <span className="text-white">{lecturer.specialization}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Email Verified:</span>
-                            <span className={lecturer.emailVerified ? 'text-green-400' : 'text-red-400'}>
-                              {lecturer.emailVerified ? 'Yes' : 'No'}
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="mt-3 pt-3 border-t border-slate-600">
-                          <span className="text-slate-400 text-xs">Created: {new Date(lecturer.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center py-8">
-                      <p className="text-slate-400">No lecturers found. Create your first lecturer account!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Other sections placeholder */}
-          {!['overview', 'students', 'lecturers'].includes(activeSection) && (
+          {!['overview', 'students'].includes(activeSection) && (
             <div className="bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 text-center">
               <div className="text-6xl mb-4">
                 {menuItems.find(item => item.id === activeSection)?.icon}
@@ -697,18 +579,16 @@ export default function AdminDashboard() {
   );
 }
 
-// User Creation Modal Component
-function UserCreationModal({ 
+// Student Creation Modal Component
+function StudentCreationModal({ 
   isOpen, 
   onClose, 
   institutionName,
-  userType,
   onSuccess
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   institutionName: string;
-  userType: 'student' | 'lecturer';
   onSuccess: () => void;
 }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -719,9 +599,7 @@ function UserCreationModal({
     lastName: '',
     email: '',
     department: '',
-    year: '', // Only for students
-    role: '', // Only for lecturers
-    specialization: '' // Only for lecturers
+    year: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -738,44 +616,25 @@ function UserCreationModal({
     setIsLoading(true);
 
     try {
-      const token = sessionStorage.getItem('accessToken');
+      const token = localStorage.getItem('accessToken');
       if (!token) {
         setError('Authentication required. Please login again.');
         return;
       }
 
-      // Prepare request body based on user type
-      let requestBody: any = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        department: formData.department
-      };
-
-      if (userType === 'student') {
-        requestBody.year = formData.year;
-      } else {
-        requestBody.role = formData.role;
-        requestBody.specialization = formData.specialization;
-      }
-
-      const endpoint = userType === 'student' 
-        ? 'http://localhost:8000/api/admin/students'
-        : 'http://localhost:8000/api/admin/lecturers';
-
-      const response = await fetch(endpoint, {
+      const response = await fetch('http://localhost:8000/api/admin/students', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(formData)
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || `Failed to create ${userType} account`);
+        throw new Error(data.message || 'Failed to create student account');
       }
 
       setSuccess(true);
@@ -784,7 +643,7 @@ function UserCreationModal({
         onSuccess();
       }, 2000);
     } catch (err: any) {
-      setError(err.message || `Failed to create ${userType}. Please try again.`);
+      setError(err.message || 'Failed to create student. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -797,8 +656,8 @@ function UserCreationModal({
       <div className="bg-slate-800 rounded-2xl p-8 max-w-2xl w-full border border-slate-700 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h3 className="text-2xl font-bold text-white">Create New {userType === 'student' ? 'Student' : 'Lecturer'}</h3>
-            <p className="text-slate-400 text-sm mt-1">An activation email will be sent to the {userType}</p>
+            <h3 className="text-2xl font-bold text-white">Create New Student</h3>
+            <p className="text-slate-400 text-sm mt-1">An activation email will be sent to the student</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -814,7 +673,7 @@ function UserCreationModal({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h4 className="text-xl font-bold text-white mb-2">{userType === 'student' ? 'Student' : 'Lecturer'} Created Successfully!</h4>
+            <h4 className="text-xl font-bold text-white mb-2">Student Created Successfully!</h4>
             <p className="text-slate-300">Activation email sent to {formData.email}</p>
           </div>
         ) : (
@@ -868,7 +727,7 @@ function UserCreationModal({
                   onChange={handleInputChange}
                   required
                   className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder={userType === 'student' ? 'john.doe@university.edu' : 'prof.doe@university.edu'}
+                  placeholder="john.doe@university.edu"
                 />
               </div>
 
@@ -907,63 +766,25 @@ function UserCreationModal({
                 </select>
               </div>
 
-              {userType === 'student' ? (
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Academic Year <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    name="year"
-                    value={formData.year}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select year...</option>
-                    <option value="Freshman (Year 1)">Freshman (Year 1)</option>
-                    <option value="Sophomore (Year 2)">Sophomore (Year 2)</option>
-                    <option value="Junior (Year 3)">Junior (Year 3)</option>
-                    <option value="Senior (Year 4)">Senior (Year 4)</option>
-                    <option value="Graduate Student">Graduate Student</option>
-                  </select>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Role <span className="text-red-400">*</span>
-                    </label>
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select role...</option>
-                      <option value="Prof">Prof</option>
-                      <option value="Dr">Dr</option>
-                      <option value="Mr">Mr</option>
-                      <option value="Mrs">Mrs</option>
-                      <option value="Ms">Ms</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Specialization <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="specialization"
-                      value={formData.specialization}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Machine Learning, Database Systems, Software Engineering"
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Academic Year <span className="text-red-400">*</span>
+                </label>
+                <select
+                  name="year"
+                  value={formData.year}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select year...</option>
+                  <option value="Freshman (Year 1)">Freshman (Year 1)</option>
+                  <option value="Sophomore (Year 2)">Sophomore (Year 2)</option>
+                  <option value="Junior (Year 3)">Junior (Year 3)</option>
+                  <option value="Senior (Year 4)">Senior (Year 4)</option>
+                  <option value="Graduate Student">Graduate Student</option>
+                </select>
+              </div>
 
               <div className="flex gap-3 mt-6 pt-4 border-t border-slate-700">
                 <button
@@ -985,7 +806,7 @@ function UserCreationModal({
                       Creating...
                     </div>
                   ) : (
-                    `Create ${userType === 'student' ? 'Student' : 'Lecturer'}`
+                    'Create Student'
                   )}
                 </button>
               </div>

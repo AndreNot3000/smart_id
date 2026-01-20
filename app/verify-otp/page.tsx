@@ -4,15 +4,33 @@ import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const API_BASE_URL = 'http://localhost:8000/api';
+
 export default function VerifyOTPPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
+  const [email, setEmail] = useState('');
+  const [institutionName, setInstitutionName] = useState('');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
   useEffect(() => {
+    // Get email from session storage
+    const storedEmail = sessionStorage.getItem('verificationEmail');
+    const storedInstitution = sessionStorage.getItem('institutionName');
+    
+    if (!storedEmail) {
+      // If no email in session, redirect to signup
+      router.push('/register-institution');
+      return;
+    }
+    
+    setEmail(storedEmail);
+    setInstitutionName(storedInstitution || '');
+    
     // Focus first input on mount
     inputRefs.current[0]?.focus();
     
@@ -28,7 +46,7 @@ export default function VerifyOTPPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [router]);
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return; // Prevent multiple characters
@@ -60,24 +78,78 @@ export default function VerifyOTPPage() {
     setIsLoading(true);
     setError('');
 
-    // Simulate API call
-    setTimeout(() => {
-      if (otpCode === '123456') { // Demo OTP
-        router.push('/barcode-generation');
-      } else {
-        setError('Invalid OTP code. Please try again.');
-        setOtp(['', '', '', '', '', '']);
-        inputRefs.current[0]?.focus();
+    try {
+      console.log('Sending OTP verification request to:', `${API_BASE_URL}/auth/verify-otp`);
+      console.log('Request body:', { email, code: otpCode });
+
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          code: otpCode
+        })
+      });
+
+      console.log('Response status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'Verification failed');
       }
+
+      // Show success message
+      setSuccess(true);
+      console.log('OTP verified successfully, redirecting to login in 2 seconds');
+      
+      // Wait 2 seconds before redirecting
+      setTimeout(() => {
+        // Clear session storage
+        sessionStorage.removeItem('verificationEmail');
+        sessionStorage.removeItem('institutionName');
+        sessionStorage.removeItem('institutionCode');
+        sessionStorage.removeItem('adminId');
+        
+        // Navigate to login page after successful verification
+        router.push('/signup');
+      }, 2000);
+    } catch (err: any) {
+      console.error('OTP verification error:', err);
+      
+      // Check if it's a network error
+      if (err.message === 'Failed to fetch') {
+        setError('Cannot connect to server. Please make sure the backend is running on http://localhost:8000');
+      } else {
+        setError(err.message || 'Invalid OTP code. Please try again.');
+      }
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
       setIsLoading(false);
-    }, 2000);
+    }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     setResendTimer(60);
     setError('');
-    // Simulate resend API call
-    console.log('Resending OTP...');
+    
+    try {
+      // Call resend OTP API
+      const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to resend code');
+      }
+      
+      // Show success message (optional)
+      console.log('OTP resent successfully');
+    } catch (err) {
+      setError('Failed to resend code. Please try again.');
+    }
   };
 
   return (
@@ -105,7 +177,12 @@ export default function VerifyOTPPage() {
             <p className="text-slate-300">
               We've sent a 6-digit verification code to
             </p>
-            <p className="text-blue-400 font-medium">john.doe@university.edu</p>
+            <p className="text-blue-400 font-medium">{email}</p>
+            {institutionName && (
+              <p className="text-slate-400 text-sm mt-2">
+                Institution: {institutionName}
+              </p>
+            )}
           </div>
 
           {/* OTP Input */}
@@ -133,8 +210,20 @@ export default function VerifyOTPPage() {
             </div>
           </div>
 
+          {/* Success Message */}
+          {success && (
+            <div className="mb-4 p-3 bg-green-900/20 border border-green-700/50 rounded-lg">
+              <p className="text-green-400 text-sm text-center flex items-center justify-center">
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Email verified successfully! Redirecting to login...
+              </p>
+            </div>
+          )}
+
           {/* Error Message */}
-          {error && (
+          {error && !success && (
             <div className="mb-4 p-3 bg-red-900/20 border border-red-700/50 rounded-lg">
               <p className="text-red-400 text-sm text-center">{error}</p>
             </div>
@@ -143,13 +232,20 @@ export default function VerifyOTPPage() {
           {/* Verify Button */}
           <button
             onClick={handleVerify}
-            disabled={isLoading || otp.join('').length !== 6}
+            disabled={isLoading || success || otp.join('').length !== 6}
             className="btn-primary w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-white py-3 rounded-lg font-semibold mb-4 transition-all duration-300"
           >
             {isLoading ? (
               <div className="flex items-center justify-center">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                 Verifying...
+              </div>
+            ) : success ? (
+              <div className="flex items-center justify-center">
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Verified!
               </div>
             ) : (
               'Verify Code'
@@ -183,13 +279,6 @@ export default function VerifyOTPPage() {
             <Link href="#" className="text-blue-400 hover:text-blue-300 transition-colors">
               contact support
             </Link>
-          </p>
-        </div>
-
-        {/* Demo Info */}
-        <div className="mt-4 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">
-          <p className="text-blue-300 text-sm text-center">
-            <strong>Demo:</strong> Use code <span className="font-mono bg-blue-800/30 px-2 py-1 rounded">123456</span> to proceed
           </p>
         </div>
       </div>

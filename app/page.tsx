@@ -51,7 +51,7 @@ export default function Home() {
               📰 News
             </button>
           </Link>
-          <Link href="/signup">
+          <Link href="/login">
             <button className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg">
               Sign In
             </button>
@@ -72,14 +72,16 @@ export default function Home() {
               and manage your campus life with a single digital identity.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6 scroll-reveal">
-              <Link href="/signup">
+              <Link href="/register-institution">
                 <button className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg text-lg font-semibold">
-                  Get Started
+                  Register Your Institution
                 </button>
               </Link>
-              <button className="btn-secondary text-white border border-slate-600 px-8 py-3 rounded-lg text-lg font-semibold">
-                <a href="#learn-more">Learn More</a>
-              </button>
+              <Link href="/login">
+                <button className="btn-secondary text-white border border-slate-600 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-slate-700/50 transition-colors">
+                  Sign In
+                </button>
+              </Link>
             </div>
           </div>
         </div>
