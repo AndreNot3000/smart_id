@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import QRScanner from "@/components/qr/QRScanner";
+import AttendanceHistory from "@/components/qr/AttendanceHistory";
 
 // API Response Types
 interface LecturerProfile {
@@ -57,6 +59,7 @@ export default function LecturerDashboard() {
   const [isScanning, setIsScanning] = useState(false);
   const [scannedStudents, setScannedStudents] = useState<ScannedStudent[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [searchStudentId, setSearchStudentId] = useState<string>('');
   
   // Data states
   const [lecturerData, setLecturerData] = useState({
@@ -275,11 +278,12 @@ export default function LecturerDashboard() {
   const menuItems = [
     { id: 'overview', name: 'Overview', icon: '📊' },
     { id: 'qr-scanner', name: 'QR Scanner', icon: '📱' },
-    { id: 'attendance', name: 'Attendance Management', icon: '📋' },
+    { id: 'student-history', name: 'Student History', icon: '📋' },
+    { id: 'attendance', name: 'Attendance Management', icon: '📅' },
     { id: 'courses', name: 'Weekly Courses', icon: '📚' },
     { id: 'grades', name: 'Grades & Assessment', icon: '📝' },
     { id: 'students', name: 'Student Records', icon: '👥' },
-    { id: 'schedule', name: 'Class Schedule', icon: '📅' },
+    { id: 'schedule', name: 'Class Schedule', icon: '🗓️' },
     { id: 'announcements', name: 'Announcements', icon: '📢' },
     { id: 'office-hours', name: 'Office Hours', icon: '🕐' },
     { id: 'reports', name: 'Reports & Analytics', icon: '📈' },
@@ -788,116 +792,40 @@ export default function LecturerDashboard() {
           )}
 
           {activeSection === 'qr-scanner' && (
+            <QRScanner />
+          )}
+
+          {activeSection === 'student-history' && (
             <div className="space-y-6">
               <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
-                <h2 className="text-xl font-bold text-white mb-6">QR Code Scanner</h2>
+                <h2 className="text-xl font-bold text-white mb-6">Student Attendance History</h2>
+                <p className="text-slate-400 mb-4">Search for a student by their Student ID to view their attendance history</p>
                 
-                {!isScanning ? (
-                  <div className="text-center">
-                    <div className="h-32 w-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                      <svg className="h-16 w-16 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5H8.25v1.5H13.5V13.5zM13.5 16.5H8.25V18H13.5v-1.5zM16.5 13.5h1.5V18h-1.5v-4.5z" />
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Student ID
+                  </label>
+                  <input
+                    type="text"
+                    value={searchStudentId}
+                    onChange={(e) => setSearchStudentId(e.target.value)}
+                    placeholder="e.g., UNIBADAN-123456789"
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {searchStudentId && searchStudentId.length > 5 && (
+                  <AttendanceHistory studentId={searchStudentId} />
+                )}
+
+                {(!searchStudentId || searchStudentId.length <= 5) && (
+                  <div className="text-center py-12">
+                    <div className="h-16 w-16 bg-slate-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-bold text-white mb-2">Scan Student QR Codes</h3>
-                    <p className="text-slate-300 mb-6">Use your camera to scan student QR codes for attendance tracking</p>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                      <div className="bg-slate-700/30 rounded-lg p-4">
-                        <h4 className="text-white font-medium mb-2">Select Course</h4>
-                        <select className="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white text-sm">
-                          <option value="">Choose a course...</option>
-                          {classes.map(course => (
-                            <option key={course.id} value={course.code}>{course.code} - {course.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="bg-slate-700/30 rounded-lg p-4">
-                        <h4 className="text-white font-medium mb-2">Session Type</h4>
-                        <select className="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white text-sm">
-                          <option value="lecture">Lecture</option>
-                          <option value="lab">Lab Session</option>
-                          <option value="tutorial">Tutorial</option>
-                          <option value="exam">Exam</option>
-                        </select>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={() => setIsScanning(true)}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
-                    >
-                      Start Scanning
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="bg-slate-900 rounded-lg p-6 mb-6">
-                      <div className="aspect-video bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg flex items-center justify-center mb-4">
-                        <div className="text-center">
-                          <div className="animate-pulse">
-                            <div className="h-32 w-32 border-4 border-blue-500 border-dashed rounded-lg mx-auto mb-4 flex items-center justify-center">
-                              <svg className="h-16 w-16 text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                              </svg>
-                            </div>
-                          </div>
-                          <p className="text-white font-medium">Camera Active - Point at QR Code</p>
-                          <p className="text-slate-400 text-sm">Position student QR codes within the frame</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-center space-x-4">
-                        <button
-                          onClick={() => {
-                            // Simulate scanning a student
-                            const newStudent = {
-                              id: Date.now(),
-                              name: `Student ${scannedStudents.length + 1}`,
-                              studentId: `STU${Math.random().toString().substr(2, 6)}`,
-                              time: new Date().toLocaleTimeString()
-                            };
-                            setScannedStudents([...scannedStudents, newStudent]);
-                          }}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Simulate Scan
-                        </button>
-                        <button
-                          onClick={() => setIsScanning(false)}
-                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Stop Scanning
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {scannedStudents.length > 0 && (
-                      <div className="bg-slate-700/30 rounded-lg p-4">
-                        <h4 className="text-white font-medium mb-3">Scanned Students ({scannedStudents.length})</h4>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {scannedStudents.map(student => (
-                            <div key={student.id} className="flex justify-between items-center bg-slate-600/50 rounded p-2">
-                              <div>
-                                <span className="text-white font-medium">{student.name}</span>
-                                <span className="text-slate-400 text-sm ml-2">({student.studentId})</span>
-                              </div>
-                              <span className="text-green-400 text-sm">{student.time}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          onClick={() => {
-                            setScannedStudents([]);
-                            setIsScanning(false);
-                          }}
-                          className="mt-4 w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors"
-                        >
-                          Save Attendance ({scannedStudents.length} students)
-                        </button>
-                      </div>
-                    )}
+                    <p className="text-slate-400">Enter a student ID to view their attendance history</p>
                   </div>
                 )}
               </div>

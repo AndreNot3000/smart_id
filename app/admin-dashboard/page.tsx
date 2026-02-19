@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import QRScanner from "@/components/qr/QRScanner";
+import AttendanceHistory from "@/components/qr/AttendanceHistory";
 
 // API Response Types
 interface DashboardStats {
@@ -81,6 +83,7 @@ export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [searchStudentId, setSearchStudentId] = useState<string>('');
   
   // Data states
   const [adminData, setAdminData] = useState({
@@ -198,6 +201,8 @@ export default function AdminDashboard() {
 
   const menuItems = [
     { id: 'overview', name: 'Dashboard Overview', icon: '📊' },
+    { id: 'qr-scanner', name: 'QR Scanner', icon: '📱' },
+    { id: 'student-history', name: 'Student History', icon: '📋' },
     { id: 'students', name: 'Student Management', icon: '🎓' },
     { id: 'lecturers', name: 'Lecturer Management', icon: '👨‍🏫' },
     { id: 'departments', name: 'Departments', icon: '🏢' },
@@ -680,7 +685,7 @@ export default function AdminDashboard() {
           )}
 
           {/* Other sections placeholder */}
-          {!['overview', 'students', 'lecturers'].includes(activeSection) && (
+          {!['overview', 'students', 'lecturers', 'qr-scanner', 'student-history'].includes(activeSection) && (
             <div className="bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 text-center">
               <div className="text-6xl mb-4">
                 {menuItems.find(item => item.id === activeSection)?.icon}
@@ -689,6 +694,49 @@ export default function AdminDashboard() {
                 {activeSection.replace('-', ' ')}
               </h2>
               <p className="text-slate-300">This section is coming soon!</p>
+            </div>
+          )}
+
+          {/* QR Scanner Section */}
+          {activeSection === 'qr-scanner' && (
+            <QRScanner />
+          )}
+
+          {/* Student History Section */}
+          {activeSection === 'student-history' && (
+            <div className="space-y-6">
+              <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
+                <h2 className="text-xl font-bold text-white mb-6">Student Attendance History</h2>
+                <p className="text-slate-400 mb-4">Search for a student by their Student ID to view their attendance history</p>
+                
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Student ID
+                  </label>
+                  <input
+                    type="text"
+                    value={searchStudentId}
+                    onChange={(e) => setSearchStudentId(e.target.value)}
+                    placeholder="e.g., UNIBADAN-123456789"
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {searchStudentId && searchStudentId.length > 5 && (
+                  <AttendanceHistory studentId={searchStudentId} />
+                )}
+
+                {(!searchStudentId || searchStudentId.length <= 5) && (
+                  <div className="text-center py-12">
+                    <div className="h-16 w-16 bg-slate-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                    </div>
+                    <p className="text-slate-400">Enter a student ID to view their attendance history</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </main>

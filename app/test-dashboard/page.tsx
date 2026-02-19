@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import StudentQRDisplay from "@/components/qr/StudentQRDisplay";
+import AttendanceHistory from "@/components/qr/AttendanceHistory";
 
 // Types for API responses
 interface StudentProfile {
@@ -151,10 +153,11 @@ export default function TestDashboard() {
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: '📊' },
+    { id: 'qr-code', name: 'My QR Code', icon: '📱' },
+    { id: 'attendance', name: 'My Attendance', icon: '📋' },
     { id: 'profile', name: 'My Profile', icon: '👤' },
     { id: 'courses', name: 'My Courses', icon: '📚' },
     { id: 'grades', name: 'Grades', icon: '📝' },
-    { id: 'attendance', name: 'Attendance', icon: '📅' },
     { id: 'schedule', name: 'Schedule', icon: '🗓️' },
     { id: 'payments', name: 'Payments', icon: '💳' }
   ];
@@ -434,7 +437,7 @@ export default function TestDashboard() {
           )}
 
           {/* Other sections placeholder */}
-          {activeSection !== 'dashboard' && (
+          {activeSection !== 'dashboard' && activeSection !== 'qr-code' && activeSection !== 'attendance' && (
             <div className="bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 text-center">
               <div className="text-6xl mb-4">
                 {menuItems.find(item => item.id === activeSection)?.icon}
@@ -444,6 +447,16 @@ export default function TestDashboard() {
               </h2>
               <p className="text-slate-300">This section is coming soon! We're working hard to bring you amazing features.</p>
             </div>
+          )}
+
+          {/* QR Code Section */}
+          {activeSection === 'qr-code' && (
+            <StudentQRDisplay className="max-w-2xl mx-auto" />
+          )}
+
+          {/* Attendance Section */}
+          {activeSection === 'attendance' && (
+            <AttendanceHistory />
           )}
         </main>
       </div>
