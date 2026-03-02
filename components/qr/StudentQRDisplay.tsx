@@ -22,9 +22,63 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
   const [error, setError] = useState<string>('');
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
-  // Generate QR code
-  const generateQR = useCallback(async () => {
+  // Storage keys
+  const QR_DATA_KEY = 'student_qr_data';
+  const QR_USER_INFO_KEY = 'student_qr_user_info';
+  const QR_EXPIRES_AT_KEY = 'student_qr_expires_at';
+
+  // Load QR data from storage
+  const loadQRFromStorage = useCallback(() => {
     try {
+      const storedQRData = sessionStorage.getItem(QR_DATA_KEY);
+      const storedUserInfo = sessionStorage.getItem(QR_USER_INFO_KEY);
+      const storedExpiresAt = sessionStorage.getItem(QR_EXPIRES_AT_KEY);
+
+      if (storedQRData && storedUserInfo && storedExpiresAt) {
+        const expirationDate = new Date(storedExpiresAt);
+        
+        // Check if QR code is still valid
+        if (expirationDate.getTime() > Date.now()) {
+          setQrData(storedQRData);
+          setUserInfo(JSON.parse(storedUserInfo));
+          setExpiresAt(expirationDate);
+          
+          const timeLeftSeconds = Math.floor((expirationDate.getTime() - Date.now()) / 1000);
+          setTimeLeft(timeLeftSeconds);
+          
+          return true; // Successfully loaded from storage
+        }
+      }
+      return false; // No valid stored data
+    } catch (err) {
+      console.error('Error loading QR from storage:', err);
+      return false;
+    }
+  }, []);
+
+  // Save QR data to storage
+  const saveQRToStorage = useCallback((qrData: string, userInfo: any, expiresAt: Date) => {
+    try {
+      sessionStorage.setItem(QR_DATA_KEY, qrData);
+      sessionStorage.setItem(QR_USER_INFO_KEY, JSON.stringify(userInfo));
+      sessionStorage.setItem(QR_EXPIRES_AT_KEY, expiresAt.toISOString());
+    } catch (err) {
+      console.error('Error saving QR to storage:', err);
+    }
+  }, []);
+
+  // Generate QR code
+  const generateQR = useCallback(async (forceRegenerate = false) => {
+    try {
+      // If not forcing regeneration, try to load from storage first
+      if (!forceRegenerate) {
+        const loaded = loadQRFromStorage();
+        if (loaded) {
+          setLoading(false);
+          return;
+        }
+      }
+
       setRefreshing(true);
       setError('');
       
@@ -41,6 +95,9 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
       // Calculate time left in seconds
       const timeLeftSeconds = Math.floor((expirationDate.getTime() - Date.now()) / 1000);
       setTimeLeft(timeLeftSeconds);
+
+      // Save to storage
+      saveQRToStorage(response.qrData, response.userInfo, expirationDate);
       
     } catch (err: any) {
       setError(err.message || 'Failed to generate QR code');
@@ -49,11 +106,11 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [loadQRFromStorage, saveQRToStorage]);
 
-  // Initial QR generation (only once on mount)
+  // Initial QR load/generation (only once on mount)
   useEffect(() => {
-    generateQR();
+    generateQR(false); // Try to load from storage first
   }, [generateQR]);
 
   // Countdown timer (updates every minute for 24-hour countdown)
@@ -129,7 +186,7 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
           <h3 className="text-xl font-semibold text-white mb-2">Error Generating QR Code</h3>
           <p className="text-slate-400 mb-4">{error}</p>
           <button 
-            onClick={generateQR}
+            onClick={() => generateQR(true)} // Force regeneration
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
           >
             Retry
@@ -208,7 +265,7 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
 
         {/* Regenerate Button */}
         <button
-          onClick={generateQR}
+          onClick={() => generateQR(true)} // Force regeneration
           disabled={refreshing}
           className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
         >
@@ -221,7 +278,7 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
         {/* Info */}
         <div className="mt-6 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">
           <p className="text-blue-300 text-sm">
-            <span className="font-semibold">💡 Tip:</span> This QR code is valid for 24 hours. You can regenerate it anytime if needed.
+            <span className="font-semibold">💡 Tip:</span> Your QR code is stored and will persist across sessions. Only regenerate if you need a new code.
           </p>
         </div>
       </div>

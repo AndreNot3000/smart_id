@@ -80,15 +80,36 @@ export const qrService = {
   },
 
   // Verify QR code only (no attendance marking)
-  verifyQRCode: async (qrData: string): Promise<{
-    valid: boolean;
-    student: {
-      studentId: string;
-      name: string;
+  verifyQRCode: async (
+    qrData: string,
+    purpose?: string,
+    location?: string,
+    notes?: string
+  ): Promise<{
+    message: string;
+    verified: boolean;
+    userType: 'student' | 'lecturer';
+    userInfo: {
+      studentId?: string;
+      lecturerId?: string;
+      firstName: string;
+      lastName: string;
+      email: string;
       department: string;
-      year: string;
-      universityName: string;
+      year?: string;
+      role?: string;
+      specialization?: string;
+      avatar: string;
+      institutionName: string;
+      status: string;
+      emailVerified: boolean;
     };
+    scannedBy: {
+      userId: string;
+      userType: string;
+      email: string;
+    };
+    scannedAt: string;
   }> => {
     const token = getAuthToken();
     if (!token) throw new Error('No authentication token found');
@@ -99,7 +120,7 @@ export const qrService = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ qrData }),
+      body: JSON.stringify({ qrData, purpose, location, notes }),
     });
 
     return handleApiError(response);

@@ -4,12 +4,26 @@ import { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { qrService } from '@/lib/qrService';
 
-interface ScannedStudent {
-  studentId: string;
-  name: string;
-  department: string;
-  year: string;
-  universityName?: string;
+interface ScannedUser {
+  userType: 'student' | 'lecturer';
+  userInfo: {
+    // Student fields
+    studentId?: string;
+    // Lecturer fields
+    lecturerId?: string;
+    // Common fields
+    firstName: string;
+    lastName: string;
+    email: string;
+    department: string;
+    year?: string; // Only for students
+    role?: string; // Only for lecturers
+    specialization?: string; // Only for lecturers
+    avatar: string;
+    institutionName: string;
+    status: string;
+    emailVerified: boolean;
+  };
 }
 
 interface QRScannerProps {
@@ -18,10 +32,11 @@ interface QRScannerProps {
 
 export default function QRScanner({ className = '' }: QRScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
-  const [scannedStudent, setScannedStudent] = useState<ScannedStudent | null>(null);
+  const [scannedUser, setScannedUser] = useState<ScannedUser | null>(null);
   const [scannedQRData, setScannedQRData] = useState<string>('');
   const [purpose, setPurpose] = useState('');
   const [location, setLocation] = useState('');
+  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -36,7 +51,7 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
       setCameraError('');
       setError('');
       setSuccess('');
-      setScannedStudent(null);
+      setScannedUser(null);
 
       // Request camera permission
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -99,12 +114,15 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
       // Store the QR data for later use
       setScannedQRData(decodedText);
 
-      // Verify QR code
-      const response = await qrService.verifyQRCode(decodedText);
+      // Verify QR code and get user information
+      const response = await qrService.verifyQRCode(decodedText, purpose, location, notes);
 
-      if (response.valid) {
-        setScannedStudent(response.student);
-        setSuccess('QR code verified successfully!');
+      if (response.verified) {
+        setScannedUser({
+          userType: response.userType,
+          userInfo: response.userInfo
+        });
+        setSuccess(`${response.userType === 'student' ? 'Student' : 'Lecturer'} verified successfully!`);
         
         // Play success sound (optional)
         if (typeof window !== 'undefined' && 'vibrate' in navigator) {
@@ -133,7 +151,13 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
 
   // Mark attendance
   const markAttendance = async () => {
-    if (!scannedStudent || !scannedQRData) return;
+    if (!scannedUser || !scannedQRData) return;
+
+    // Only allow marking attendance for students
+    if (scannedUser.userType !== 'student') {
+      setError('Attendance can only be marked for students');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -156,10 +180,11 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
 
       // Reset form after 2 seconds
       setTimeout(() => {
-        setScannedStudent(null);
+        setScannedUser(null);
         setScannedQRData('');
         setPurpose('');
         setLocation('');
+        setNotes('');
         setSuccess('');
       }, 2000);
 
@@ -206,7 +231,7 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
         )}
 
         {/* Scanner Container */}
-        {!isScanning && !scannedStudent && !cameraError && (
+        {!isScanning && !scannedUser && !cameraError && (
           <div className="mb-6">
             <div className="bg-slate-700/30 rounded-lg p-12 mb-4">
               <svg className="h-24 w-24 text-slate-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -268,14 +293,14 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
         )}
 
         {/* Success Message */}
-        {success && !scannedStudent && (
+        {success && !scannedUser && (
           <div className="mb-6 p-4 bg-green-900/20 border border-green-700/50 rounded-lg">
             <p className="text-green-400">{success}</p>
           </div>
         )}
 
-        {/* Scanned Student Info */}
-        {scannedStudent && (
+        {/* Scanned User Info */}
+        {scannedUser && (
           <div className="mb-6">
             <div className="bg-green-900/20 border border-green-700/50 rounded-lg p-6 mb-4">
               <div className="flex items-center justify-center mb-4">
@@ -286,75 +311,143 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
                 </div>
               </div>
               
-              <h3 className="text-xl font-bold text-white mb-4">Student Verified</h3>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {scannedUser.userType === 'student' ? 'Student' : 'Lecturer'} Verified
+              </h3>
+              <p className="text-slate-400 text-sm mb-4">Identity confirmed successfully</p>
               
               <div className="space-y-3 text-left">
                 <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
                   <span className="text-slate-400">Name:</span>
-                  <span className="text-white font-semibold">{scannedStudent.name}</span>
+                  <span className="text-white font-semibold">
+                    {scannedUser.userInfo.firstName} {scannedUser.userInfo.lastName}
+                  </span>
                 </div>
+                
                 <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
-                  <span className="text-slate-400">Student ID:</span>
-                  <span className="text-white font-mono">{scannedStudent.studentId}</span>
+                  <span className="text-slate-400">
+                    {scannedUser.userType === 'student' ? 'Student ID:' : 'Lecturer ID:'}
+                  </span>
+                  <span className="text-white font-mono">
+                    {scannedUser.userType === 'student' 
+                      ? scannedUser.userInfo.studentId 
+                      : scannedUser.userInfo.lecturerId}
+                  </span>
                 </div>
+                
+                <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
+                  <span className="text-slate-400">Email:</span>
+                  <span className="text-white text-sm">{scannedUser.userInfo.email}</span>
+                </div>
+                
                 <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
                   <span className="text-slate-400">Department:</span>
-                  <span className="text-white">{scannedStudent.department}</span>
+                  <span className="text-white">{scannedUser.userInfo.department}</span>
                 </div>
-                <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
-                  <span className="text-slate-400">Year:</span>
-                  <span className="text-white">{scannedStudent.year}</span>
-                </div>
-                {scannedStudent.universityName && (
+                
+                {scannedUser.userType === 'student' && scannedUser.userInfo.year && (
                   <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
-                    <span className="text-slate-400">University:</span>
-                    <span className="text-white">{scannedStudent.universityName}</span>
+                    <span className="text-slate-400">Year:</span>
+                    <span className="text-white">{scannedUser.userInfo.year}</span>
                   </div>
                 )}
+                
+                {scannedUser.userType === 'lecturer' && scannedUser.userInfo.role && (
+                  <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
+                    <span className="text-slate-400">Role:</span>
+                    <span className="text-white">{scannedUser.userInfo.role}</span>
+                  </div>
+                )}
+                
+                {scannedUser.userType === 'lecturer' && scannedUser.userInfo.specialization && (
+                  <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
+                    <span className="text-slate-400">Specialization:</span>
+                    <span className="text-white">{scannedUser.userInfo.specialization}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
+                  <span className="text-slate-400">Institution:</span>
+                  <span className="text-white">{scannedUser.userInfo.institutionName}</span>
+                </div>
+                
+                <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
+                  <span className="text-slate-400">Status:</span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    scannedUser.userInfo.status === 'active' 
+                      ? 'bg-green-900/30 text-green-400' 
+                      : 'bg-yellow-900/30 text-yellow-400'
+                  }`}>
+                    {scannedUser.userInfo.status}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
+                  <span className="text-slate-400">Email Verified:</span>
+                  <span className={scannedUser.userInfo.emailVerified ? 'text-green-400' : 'text-red-400'}>
+                    {scannedUser.userInfo.emailVerified ? 'Yes' : 'No'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Mark Attendance Form */}
-            <div className="bg-slate-700/30 rounded-lg p-6 mb-4">
-              <h4 className="text-lg font-semibold text-white mb-4">Mark Attendance (Optional)</h4>
-              
-              <div className="space-y-4 text-left">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Purpose (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={purpose}
-                    onChange={(e) => setPurpose(e.target.value)}
-                    placeholder="e.g., Lecture, Lab Session, Event"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+            {/* Mark Attendance Form - Only for Students */}
+            {scannedUser.userType === 'student' && (
+              <div className="bg-slate-700/30 rounded-lg p-6 mb-4">
+                <h4 className="text-lg font-semibold text-white mb-4">Mark Attendance (Optional)</h4>
+                
+                <div className="space-y-4 text-left">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Purpose (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={purpose}
+                      onChange={(e) => setPurpose(e.target.value)}
+                      placeholder="e.g., Lecture, Lab Session, Event"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Location (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g., Room 301, Main Hall"
-                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Location (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="e.g., Room 301, Main Hall"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Notes (Optional)
+                    </label>
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Additional notes..."
+                      rows={3}
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={() => {
-                  setScannedStudent(null);
+                  setScannedUser(null);
                   setScannedQRData('');
                   setPurpose('');
                   setLocation('');
+                  setNotes('');
                   setError('');
                   setSuccess('');
                 }}
@@ -362,13 +455,16 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
               >
                 Scan Another
               </button>
-              <button
-                onClick={markAttendance}
-                disabled={loading}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Marking...' : 'Mark Attendance'}
-              </button>
+              
+              {scannedUser.userType === 'student' && (
+                <button
+                  onClick={markAttendance}
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Marking...' : 'Mark Attendance'}
+                </button>
+              )}
             </div>
           </div>
         )}

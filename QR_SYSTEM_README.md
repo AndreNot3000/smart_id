@@ -10,10 +10,12 @@
 - `getStudentAttendanceHistory()` - Get specific student's history (lecturer/admin)
 
 ### 2. **Student QR Display** (`components/qr/StudentQRDisplay.tsx`)
-✅ **UPDATED FOR 24-HOUR EXPIRATION**
-✅ Generates once on page load (no auto-refresh)
-✅ 24-hour countdown timer with color coding
-✅ Manual "Regenerate" button
+✅ **UPDATED FOR PERSISTENT STORAGE**
+✅ Generates once on first dashboard access
+✅ Stores QR data in sessionStorage
+✅ Loads from storage on subsequent visits (no API call)
+✅ Only regenerates when user clicks "Regenerate" button
+✅ Automatic expiration check (24 hours)
 ✅ Avatar/initials overlay in QR center
 ✅ Large, centered QR code (280x280px)
 ✅ Student information display
@@ -52,11 +54,12 @@
 - Professional and branded appearance
 - Easy visual identification
 
-### 3. No Auto-Refresh Logic
-- Frontend generates QR once on page load
-- Optional manual "Regenerate" button
-- Simpler implementation
-- Reduced API calls
+### 3. Persistent Storage Implementation (NEW)
+- QR code stored in sessionStorage
+- Loads from storage on subsequent visits
+- No API call needed after first generation
+- Only regenerates when user explicitly requests
+- Automatic expiration validation
 
 ### 4. QR Scanner Fixed
 - Now properly stores scanned QR data
@@ -196,8 +199,9 @@ Same as Lecturer Dashboard
 
 1. **For Students**: 
    - QR code is valid for 24 hours
-   - Keep QR code visible and ensure good lighting for scanning
-   - Regenerate manually if needed
+   - Generated once and stored for instant access
+   - No need to wait for generation on subsequent visits
+   - Regenerate manually only if needed
    - Check timer to see when it expires
 
 2. **For Lecturers**: 
@@ -208,10 +212,17 @@ Same as Lecturer Dashboard
 
 3. **Expiration**: 
    - QR codes expire after 24 hours for security
-   - Students can regenerate anytime
+   - Automatically regenerates if expired
+   - Students can manually regenerate anytime
    - Expired QR codes are rejected by scanner
 
-4. **Avatar Overlay**: 
+4. **Storage**: 
+   - QR data stored in sessionStorage
+   - Persists across page refreshes
+   - Cleared when browser tab closes
+   - Separate per browser tab
+
+5. **Avatar Overlay**: 
    - Student initials appear in QR center
    - Helps with visual identification
    - Professional branded appearance
