@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { getApiUrl } from "@/lib/config";
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -38,7 +39,7 @@ function VerifyEmailContent() {
 
   const verifyEmail = async (token: string, email: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/auth/verify-email?token=${token}&email=${email}`, {
+      const response = await fetch(getApiUrl(`/api/auth/verify-email?token=${token}&email=${email}`), {
         method: 'GET',
       });
 

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import QRScanner from "@/components/qr/QRScanner";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
+import { getApiUrl } from "@/lib/config";
 
 // API Response Types
 interface DashboardStats {
@@ -120,25 +121,25 @@ export default function AdminDashboard() {
 
         // Fetch all data in parallel
         const [profileRes, statsRes, studentsRes, lecturersRes] = await Promise.all([
-          fetch('http://localhost:8000/api/users/profile', {
+          fetch(getApiUrl('/api/users/profile'), {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           }),
-          fetch('http://localhost:8000/api/users/dashboard-stats', {
+          fetch(getApiUrl('/api/users/dashboard-stats'), {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           }),
-          fetch('http://localhost:8000/api/admin/students', {
+          fetch(getApiUrl('/api/admin/students'), {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           }),
-          fetch('http://localhost:8000/api/admin/lecturers', {
+          fetch(getApiUrl('/api/admin/lecturers'), {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -808,8 +809,8 @@ function UserCreationModal({
       }
 
       const endpoint = userType === 'student' 
-        ? 'http://localhost:8000/api/admin/students'
-        : 'http://localhost:8000/api/admin/lecturers';
+        ? getApiUrl('/api/admin/students')
+        : getApiUrl('/api/admin/lecturers');
 
       const response = await fetch(endpoint, {
         method: 'POST',

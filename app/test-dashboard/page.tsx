@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StudentQRDisplay from "@/components/qr/StudentQRDisplay";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
+import { getApiUrl } from "@/lib/config";
 
 // Types for API responses
 interface StudentProfile {
@@ -60,7 +61,7 @@ export default function TestDashboard() {
           return;
         }
 
-        const response = await fetch('http://localhost:8000/api/users/profile', {
+        const response = await fetch(getApiUrl('/api/users/profile'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

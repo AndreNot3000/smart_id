@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getApiUrl } from "@/lib/config";
 
 // First Login Password Change Modal Component
 function FirstLoginModal({ isOpen, onClose, onPasswordChange, loading, fieldErrors, setFieldErrors }: {
@@ -227,7 +228,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/auth/login", {
+      const response = await fetch(getApiUrl("/api/auth/login"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -275,7 +276,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/users/change-password", {
+      const response = await fetch(getApiUrl("/api/users/change-password"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

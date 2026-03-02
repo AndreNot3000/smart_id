@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import QRScanner from "@/components/qr/QRScanner";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
+import { getApiUrl } from "@/lib/config";
 
 // API Response Types
 interface LecturerProfile {
@@ -95,7 +96,7 @@ export default function LecturerDashboard() {
           return;
         }
 
-        const response = await fetch('http://localhost:8000/api/users/profile', {
+        const response = await fetch(getApiUrl('/api/users/profile'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

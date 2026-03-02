@@ -1,6 +1,5 @@
 // QR Code API Service Layer
-
-const API_BASE_URL = 'http://localhost:8000';
+import { API_BASE_URL } from './config';
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
