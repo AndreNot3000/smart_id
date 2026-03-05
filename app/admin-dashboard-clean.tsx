@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { API_BASE_URL } from "@/lib/config";
 
 // API Response Types
 interface DashboardStats {
@@ -91,19 +92,19 @@ export default function AdminDashboard() {
 
         // Fetch all data in parallel
         const [profileRes, statsRes, studentsRes] = await Promise.all([
-          fetch('http://localhost:8000/api/users/profile', {
+          fetch(`${API_BASE_URL}/api/users/profile`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           }),
-          fetch('http://localhost:8000/api/users/dashboard-stats', {
+          fetch(`${API_BASE_URL}/api/users/dashboard-stats`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           }),
-          fetch('http://localhost:8000/api/admin/students', {
+          fetch(`${API_BASE_URL}/api/admin/students`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -622,7 +623,7 @@ function StudentCreationModal({
         return;
       }
 
-      const response = await fetch('http://localhost:8000/api/admin/students', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/students`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

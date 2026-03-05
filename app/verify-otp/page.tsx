@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-const API_BASE_URL = 'http://localhost:8000/api';
+import { API_BASE_URL } from "@/lib/config";
 
 export default function VerifyOTPPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -79,10 +78,10 @@ export default function VerifyOTPPage() {
     setError('');
 
     try {
-      console.log('Sending OTP verification request to:', `${API_BASE_URL}/auth/verify-otp`);
+      console.log('Sending OTP verification request to:', `${API_BASE_URL}/api/auth/verify-otp`);
       console.log('Request body:', { email, code: otpCode });
 
-      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -119,7 +118,7 @@ export default function VerifyOTPPage() {
       
       // Check if it's a network error
       if (err.message === 'Failed to fetch') {
-        setError('Cannot connect to server. Please make sure the backend is running on http://localhost:8000');
+        setError('Cannot connect to server. Please check your internet connection and try again.');
       } else {
         setError(err.message || 'Invalid OTP code. Please try again.');
       }
@@ -135,7 +134,7 @@ export default function VerifyOTPPage() {
     
     try {
       // Call resend OTP API
-      const response = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/resend-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

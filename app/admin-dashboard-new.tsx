@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "@/lib/config";
 
 // API Response Types
 interface DashboardStats {
@@ -62,7 +63,7 @@ export default function AdminDashboard() {
           throw new Error('No access token found');
         }
 
-        const response = await fetch('http://localhost:8000/api/users/dashboard-stats', {
+        const response = await fetch(`${API_BASE_URL}/api/users/dashboard-stats`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -93,7 +94,7 @@ export default function AdminDashboard() {
           throw new Error('No access token found');
         }
 
-        const response = await fetch('http://localhost:8000/api/admin/students', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/students`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

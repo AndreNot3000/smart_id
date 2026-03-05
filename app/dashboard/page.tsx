@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { API_BASE_URL } from "@/lib/config";
 
 // Student Profile API Response Type
 interface StudentProfile {
@@ -46,7 +47,7 @@ export default function StudentDashboard() {
           return;
         }
 
-        const response = await fetch('http://localhost:8000/api/users/profile', {
+        const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

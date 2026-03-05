@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-
-const API_BASE_URL = 'http://localhost:8000/api';
+import { API_BASE_URL } from "@/lib/config";
 
 export default function RegisterInstitutionPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -142,7 +141,7 @@ export default function RegisterInstitutionPage() {
     setIsLoading(true);
 
     try {
-      console.log('Sending registration request to:', `${API_BASE_URL}/auth/admin/register`);
+      console.log('Sending registration request to:', `${API_BASE_URL}/api/auth/admin/register`);
       console.log('Request body:', {
         institutionCode: formData.institutionCode,
         adminFirstName: formData.adminFirstName,
@@ -152,7 +151,7 @@ export default function RegisterInstitutionPage() {
         confirmPassword: '***'
       });
 
-      const response = await fetch(`${API_BASE_URL}/auth/admin/register`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/admin/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +186,7 @@ export default function RegisterInstitutionPage() {
       
       // Check if it's a network error
       if (err.message === 'Failed to fetch') {
-        setError('Cannot connect to server. Please make sure the backend is running on http://localhost:8000');
+        setError('Cannot connect to server. Please check your internet connection and try again.');
       } else {
         setError(err.message || 'Registration failed. Please check your connection and try again.');
       }
