@@ -4,11 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StudentQRDisplay from "@/components/qr/StudentQRDisplay";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
-import StudentProfilePage from "@/components/profile/StudentProfilePage";
-import ProfileCompletionBanner from "@/components/profile/ProfileCompletionBanner";
-import { WalletCard, TransactionHistory, TopUpModal, PaymentModal } from "@/components/wallet";
 import { getApiUrl } from "@/lib/config";
-import { profileService } from "@/lib/profileService";
 
 // Types for API responses
 interface StudentProfile {
@@ -54,90 +50,50 @@ export default function TestDashboard() {
   const [studentData, setStudentData] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-
-  // Check for section query parameter
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const section = params.get('section');
-      if (section) {
-        setActiveSection(section);
-        // Clean up URL
-        window.history.replaceState({}, '', '/test-dashboard');
-      }
-    }
-  }, []);
 
   // Fetch student profile data
   useEffect(() => {
-    fetchStudentProfile();
-    fetchWalletBalance();
-  }, [router]);
+    const fetchStudentProfile = async () => {
+      try {
+        const token = sessionStorage.getItem('accessToken');
+        
+        if (!token) {
+          router.push('/login');
+          return;
+        }
 
-  const fetchWalletBalance = async () => {
-    try {
-      const { paymentService } = await import('@/lib/paymentService');
-      const response = await paymentService.getWalletBalance();
-      setWalletBalance(response.wallet.balance || 0);
-    } catch (err) {
-      console.error('Wallet fetch error:', err);
-      // Keep balance at 0 if wallet not found or error
-      setWalletBalance(0);
-    }
-  };
-
-  const fetchStudentProfile = async () => {
-    try {
-      const token = sessionStorage.getItem('accessToken');
-      
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      console.log('Fetching student profile...');
-
-      const response = await fetch(getApiUrl('/api/users/profile'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Profile response status:', response.status);
-
-      if (response.status === 401) {
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('user');
-        router.push('/login');
-        return;
-      }
-
-      if (response.ok) {
-        const profileData: StudentProfile = await response.json();
-        console.log('Profile data received:', {
-          hasAvatar: !!profileData.profile.avatar,
-          avatarLength: profileData.profile.avatar?.length,
-          avatarStart: profileData.profile.avatar?.substring(0, 50),
-          firstName: profileData.profile.firstName,
-          studentId: profileData.profile.studentId
+        const response = await fetch(getApiUrl('/api/users/profile'), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
-        setStudentData(profileData);
-      } else {
-        throw new Error('Failed to load profile data');
-      }
 
-    } catch (err: any) {
-      setError(err.message || 'Failed to load student data');
-      console.error('Student profile fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+        if (response.status === 401) {
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('refreshToken');
+          sessionStorage.removeItem('user');
+          router.push('/login');
+          return;
+        }
+
+        if (response.ok) {
+          const profileData: StudentProfile = await response.json();
+          setStudentData(profileData);
+        } else {
+          throw new Error('Failed to load profile data');
+        }
+
+      } catch (err: any) {
+        setError(err.message || 'Failed to load student data');
+        console.error('Student profile fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStudentProfile();
+  }, [router]);
 
   // Static data (would normally come from APIs)
   const todaysClasses: Course[] = [
@@ -213,7 +169,7 @@ export default function TestDashboard() {
     gpa: 3.85,
     creditsEarned: 84,
     attendance: 96,
-    walletBalance: walletBalance
+    walletBalance: 15420
   } : {
     gpa: 0,
     creditsEarned: 0,
@@ -225,17 +181,12 @@ export default function TestDashboard() {
     ? `${studentData.profile.firstName} ${studentData.profile.lastName}`
     : 'Student';
 
-  const initials = studentData 
-    ? profileService.getInitials(studentData.profile.firstName, studentData.profile.lastName)
-    : 'ST';
-
   const displayData = {
     name: displayName,
     studentId: studentData?.profile.studentId || 'Loading...',
     year: studentData?.profile.year || 'Loading...',
     university: studentData?.profile.universityName || 'Loading...',
-    avatar: studentData?.profile.avatar || '',
-    initials: initials
+    avatar: studentData?.profile.avatar || 'ST'
   };
 
   if (loading) {
@@ -306,16 +257,8 @@ export default function TestDashboard() {
         {/* User Profile */}
         <div className="p-4 sm:p-6 border-b border-slate-700/50">
           <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-              {displayData.avatar && displayData.avatar.startsWith('data:image') ? (
-                <img 
-                  src={displayData.avatar} 
-                  alt="Profile" 
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="text-white font-bold text-sm sm:text-base">{displayData.initials}</span>
-              )}
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-sm sm:text-base">{displayData.avatar}</span>
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-white font-semibold text-sm sm:text-base truncate">{displayData.name}</h3>
@@ -391,16 +334,8 @@ export default function TestDashboard() {
                 <p className="text-slate-400 text-xs">Physics</p>
               </div>
               
-              <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
-                {displayData.avatar && displayData.avatar.startsWith('data:image') ? (
-                  <img 
-                    src={displayData.avatar} 
-                    alt="Profile" 
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white font-bold text-xs sm:text-base">{displayData.initials}</span>
-                )}
+              <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-xs sm:text-base">{displayData.avatar}</span>
               </div>
             </div>
           </div>
@@ -410,9 +345,6 @@ export default function TestDashboard() {
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           {activeSection === 'dashboard' && (
             <div className="space-y-4 sm:space-y-6">
-              {/* Profile Completion Banner */}
-              <ProfileCompletionBanner onNavigateToProfile={() => setActiveSection('profile')} />
-              
               {/* Welcome Card */}
               <div className="bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -538,7 +470,7 @@ export default function TestDashboard() {
           )}
 
           {/* Other sections placeholder */}
-          {activeSection !== 'dashboard' && activeSection !== 'qr-code' && activeSection !== 'attendance' && activeSection !== 'profile' && activeSection !== 'payments' && (
+          {activeSection !== 'dashboard' && activeSection !== 'qr-code' && activeSection !== 'attendance' && (
             <div className="bg-slate-800/50 backdrop-blur-sm p-6 sm:p-8 rounded-2xl border border-slate-700/50 text-center">
               <div className="text-4xl sm:text-6xl mb-4">
                 {menuItems.find(item => item.id === activeSection)?.icon}
@@ -559,41 +491,8 @@ export default function TestDashboard() {
           {activeSection === 'attendance' && (
             <AttendanceHistory />
           )}
-
-          {/* Profile Section */}
-          {activeSection === 'profile' && (
-            <StudentProfilePage onProfileUpdate={fetchStudentProfile} />
-          )}
-
-          {/* Payments Section */}
-          {activeSection === 'payments' && (
-            <div className="space-y-6">
-              <WalletCard 
-                onTopUpClick={() => setShowTopUpModal(true)}
-                onPayClick={() => setShowPaymentModal(true)}
-              />
-              <TransactionHistory />
-            </div>
-          )}
         </main>
       </div>
-
-      {/* Modals */}
-      <TopUpModal 
-        isOpen={showTopUpModal}
-        onClose={() => setShowTopUpModal(false)}
-        onSuccess={() => {
-          fetchWalletBalance();
-        }}
-      />
-      
-      <PaymentModal 
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onSuccess={() => {
-          fetchWalletBalance();
-        }}
-      />
     </div>
   );
 }

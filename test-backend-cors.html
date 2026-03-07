@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend CORS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+            border-radius: 4px;
+        }
+        .test-section.error {
+            border-left-color: #f44336;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .error-text {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .info {
+            color: #2196F3;
+        }
+        .warning {
+            color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Backend CORS Diagnostic Tool</h1>
+        
+        <div class="test-section">
+            <h3>Current Environment</h3>
+            <div class="result">
+<strong>Your Origin:</strong> <span id="currentOrigin"></span>
+<strong>Backend URL:</strong> https://api.smartunivid.xyz
+<strong>Test Status:</strong> <span id="testStatus">Ready to test</span>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 1: Backend Health Check</h3>
+            <button onclick="testHealth()">Test Backend Health</button>
+            <div id="healthResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: CORS Preflight (OPTIONS)</h3>
+            <button onclick="testCORS()">Test CORS Headers</button>
+            <div id="corsResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: Login API Call</h3>
+            <p class="info">This will attempt a real login request</p>
+            <input type="email" id="testEmail" placeholder="Email" style="padding: 8px; width: 200px; margin: 5px;">
+            <input type="password" id="testPassword" placeholder="Password" style="padding: 8px; width: 200px; margin: 5px;">
+            <br>
+            <button onclick="testLogin()">Test Login</button>
+            <div id="loginResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 4: Profile API Call</h3>
+            <p class="info">Requires valid access token</p>
+            <input type="text" id="testToken" placeholder="Access Token" style="padding: 8px; width: 400px; margin: 5px;">
+            <br>
+            <button onclick="testProfile()">Test Profile API</button>
+            <div id="profileResult" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Diagnosis Summary</h3>
+            <div id="summary" class="result">
+Run the tests above to diagnose the issue.
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>💡 Quick Fixes</h3>
+            <div class="result">
+<strong>If CORS Error:</strong>
+1. Contact backend team
+2. Share your origin: <span id="originToShare"></span>
+3. Ask them to add it to CORS allowed origins
+
+<strong>Backend CORS Configuration Needed:</strong>
+allow_origins = [
+    "http://localhost:3000",
+    "https://*.ngrok-free.app",  ← Add this
+    "https://*.ngrok.io"         ← Or this
+]
+
+<strong>Or temporarily for testing:</strong>
+allow_origins = ["*"]  # Allow all (testing only!)
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://api.smartunivid.xyz';
+        
+        // Display current origin
+        document.getElementById('currentOrigin').textContent = window.location.origin;
+        document.getElementById('originToShare').textContent = window.location.origin;
+
+        // Test 1: Health Check
+        async function testHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<span class="info">Testing...</span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET',
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<span class="success">✅ SUCCESS</span>\n\nBackend is accessible!\n\nResponse: ${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="warning">⚠️ WARNING</span>\n\nBackend responded with status: ${response.status}\n\nThis might be normal if /api/health doesn't exist.`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error-text">❌ ERROR</span>\n\n${error.message}\n\nBackend might be down or CORS is blocking the request.`;
+            }
+        }
+
+        // Test 2: CORS Headers
+        async function testCORS() {
+            const resultDiv = document.getElementById('corsResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<span class="info">Testing CORS...</span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type',
+                    }
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials'),
+                };
+                
+                const allowOrigin = corsHeaders['Access-Control-Allow-Origin'];
+                
+                if (allowOrigin === '*' || allowOrigin === window.location.origin) {
+                    resultDiv.innerHTML = `<span class="success">✅ CORS CONFIGURED CORRECTLY</span>\n\nYour origin is allowed!\n\nCORS Headers:\n${JSON.stringify(corsHeaders, null, 2)}`;
+                } else if (allowOrigin) {
+                    resultDiv.innerHTML = `<span class="error-text">❌ CORS ISSUE FOUND</span>\n\nYour origin is NOT in the allowed list.\n\nAllowed: ${allowOrigin}\nYour Origin: ${window.location.origin}\n\nCORS Headers:\n${JSON.stringify(corsHeaders, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="error-text">❌ NO CORS HEADERS</span>\n\nBackend is not sending CORS headers.\n\nResponse Status: ${response.status}\n\nThis means CORS is not configured on the backend.`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error-text">❌ CORS ERROR</span>\n\n${error.message}\n\nThis is a CORS issue. The backend is blocking requests from your origin.`;
+            }
+        }
+
+        // Test 3: Login
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            
+            if (!email || !password) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<span class="warning">⚠️ Please enter email and password</span>';
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<span class="info">Testing login...</span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<span class="success">✅ LOGIN SUCCESS</span>\n\nNo CORS issues!\n\nResponse:\n${JSON.stringify(data, null, 2)}\n\n<span class="info">Copy the accessToken above to test Profile API</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span class="warning">⚠️ LOGIN FAILED</span>\n\nBut the request went through (no CORS issue)!\n\nStatus: ${response.status}\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error-text">❌ REQUEST FAILED</span>\n\n${error.message}\n\nThis is likely a CORS issue blocking the request.`;
+            }
+        }
+
+        // Test 4: Profile
+        async function testProfile() {
+            const resultDiv = document.getElementById('profileResult');
+            const token = document.getElementById('testToken').value;
+            
+            if (!token) {
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<span class="warning">⚠️ Please enter access token</span>';
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<span class="info">Testing profile API...</span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/users/profile`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<span class="success">✅ PROFILE API SUCCESS</span>\n\nNo CORS issues!\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.innerHTML = `<span class="warning">⚠️ API FAILED</span>\n\nBut the request went through (no CORS issue)!\n\nStatus: ${response.status}\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error-text">❌ REQUEST FAILED</span>\n\n${error.message}\n\nThis is likely a CORS issue blocking the request.`;
+            }
+        }
+
+        // Auto-detect if on Ngrok
+        if (window.location.hostname.includes('ngrok')) {
+            document.getElementById('testStatus').innerHTML = '<span class="warning">⚠️ Running on Ngrok - CORS issues likely</span>';
+        } else if (window.location.hostname === 'localhost') {
+            document.getElementById('testStatus').innerHTML = '<span class="success">✅ Running on localhost - Should work</span>';
+        }
+    </script>
+</body>
+</html>

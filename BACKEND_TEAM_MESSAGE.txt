@@ -1,0 +1,162 @@
+========================================
+MESSAGE FOR BACKEND TEAM
+========================================
+
+Hi Backend Team,
+
+I'm testing our frontend application via Ngrok for mobile device testing.
+
+ISSUE:
+------
+Login and all API calls work perfectly on localhost:3000, but fail when accessing via Ngrok URL due to CORS policy blocking.
+
+MY NGROK URL:
+-------------
+https://[YOUR-NGROK-URL-HERE].ngrok-free.app
+
+(Note: This URL changes each time I restart Ngrok)
+
+REQUESTED FIX:
+--------------
+Please add Ngrok domains to the CORS allowed origins in the backend.
+
+OPTION 1 - Allow All Ngrok Domains (Recommended for Testing):
+--------------------------------------------------------------
+
+For FastAPI (Python):
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "https://yourdomain.com",
+        "https://*.ngrok-free.app",  # ← ADD THIS
+        "https://*.ngrok.io",         # ← ADD THIS
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+For Express.js (Node.js):
+```javascript
+const cors = require('cors');
+
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://yourdomain.com',
+    /https:\/\/.*\.ngrok-free\.app$/,  # ← ADD THIS
+    /https:\/\/.*\.ngrok\.io$/          # ← ADD THIS
+  ],
+  credentials: true
+}));
+```
+
+OPTION 2 - Temporary: Allow All Origins (Testing Only):
+--------------------------------------------------------
+
+For FastAPI:
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ← Allow all origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+For Express.js:
+```javascript
+app.use(cors({
+  origin: "*",  # ← Allow all origins
+  credentials: true
+}));
+```
+
+⚠️ WARNING: Option 2 should ONLY be used in development/testing environment, NOT in production!
+
+AFTER UPDATING:
+---------------
+1. Please restart the backend server
+2. Let me know when it's done
+3. I'll test and confirm it's working
+
+CURRENT ERROR IN BROWSER CONSOLE:
+----------------------------------
+Access to fetch at 'https://api.smartunivid.xyz/api/auth/login' 
+from origin 'https://[ngrok-url].ngrok-free.app' has been blocked by CORS policy: 
+No 'Access-Control-Allow-Origin' header is present on the requested resource.
+
+WHY THIS IS NEEDED:
+-------------------
+- Mobile device testing requires HTTPS (Ngrok provides this)
+- Camera features (QR scanner) require HTTPS
+- Can't test on localhost from mobile devices
+- Ngrok is the standard tool for mobile testing
+
+TESTING SCOPE:
+--------------
+This is only for development/testing. Once testing is complete, we'll deploy 
+the frontend to production (Vercel/Netlify) and you can remove Ngrok domains 
+from CORS if needed.
+
+BACKEND URL:
+------------
+https://api.smartunivid.xyz
+
+FRONTEND ENDPOINTS BEING TESTED:
+---------------------------------
+- POST /api/auth/login
+- GET /api/users/profile
+- GET /api/users/dashboard-stats
+- GET /api/admin/students
+- GET /api/admin/lecturers
+- POST /api/admin/students
+- POST /api/admin/lecturers
+- GET /api/qr/generate
+- POST /api/qr/verify
+- POST /api/qr/scan-attendance
+- GET /api/qr/attendance/my-history
+- GET /api/qr/attendance/student/:studentId
+
+TIMELINE:
+---------
+This is blocking mobile testing. Would appreciate a quick fix when possible.
+
+VERIFICATION:
+-------------
+After you update and restart:
+1. I'll clear my browser cache
+2. Restart Ngrok
+3. Test login on new Ngrok URL
+4. Confirm no CORS errors in console
+5. Let you know it's working
+
+Thank you for your help!
+
+========================================
+QUICK REFERENCE FOR BACKEND TEAM
+========================================
+
+Current CORS Config (Probably):
+allow_origins = ["http://localhost:3000", "https://yourdomain.com"]
+
+Needed CORS Config:
+allow_origins = [
+    "http://localhost:3000",
+    "https://yourdomain.com",
+    "https://*.ngrok-free.app",  ← ADD
+    "https://*.ngrok.io"         ← ADD
+]
+
+Or for quick testing:
+allow_origins = ["*"]  # Testing only!
+
+Don't forget to RESTART the backend server after changing!
+
+========================================

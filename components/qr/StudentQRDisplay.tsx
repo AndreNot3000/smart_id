@@ -224,11 +224,21 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
                   level="H"
                 />
                 {/* Avatar Overlay in Center */}
-                {userInfo?.avatar && (
+                {userInfo && (
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                     <div className="bg-white rounded-lg p-2 shadow-lg border-2 border-slate-200">
-                      <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">{userInfo.avatar}</span>
+                      <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center overflow-hidden">
+                        {userInfo.avatar && userInfo.avatar.startsWith('data:image') ? (
+                          <img 
+                            src={userInfo.avatar} 
+                            alt="Profile" 
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-white font-bold text-sm">
+                            {userInfo.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

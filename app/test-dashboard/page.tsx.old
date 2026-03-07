@@ -4,11 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StudentQRDisplay from "@/components/qr/StudentQRDisplay";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
-import StudentProfilePage from "@/components/profile/StudentProfilePage";
-import ProfileCompletionBanner from "@/components/profile/ProfileCompletionBanner";
-import { WalletCard, TransactionHistory, TopUpModal, PaymentModal } from "@/components/wallet";
 import { getApiUrl } from "@/lib/config";
-import { profileService } from "@/lib/profileService";
 
 // Types for API responses
 interface StudentProfile {
@@ -47,235 +43,11 @@ interface Grade {
   status: 'excellent' | 'good' | 'average' | 'poor';
 }
 
-export default function TestDashboard() {
-  const router = useRouter();
-  const [activeSection, setActiveSection] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [studentData, setStudentData] = useState<StudentProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number>(0);
-
-  // Check for section query parameter
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const section = params.get('section');
-      if (section) {
-        setActiveSection(section);
-        // Clean up URL
-        window.history.replaceState({}, '', '/test-dashboard');
-      }
-    }
-  }, []);
-
-  // Fetch student profile data
-  useEffect(() => {
-    fetchStudentProfile();
-    fetchWalletBalance();
-  }, [router]);
-
-  const fetchWalletBalance = async () => {
-    try {
-      const { paymentService } = await import('@/lib/paymentService');
-      const response = await paymentService.getWalletBalance();
-      setWalletBalance(response.wallet.balance || 0);
-    } catch (err) {
-      console.error('Wallet fetch error:', err);
-      // Keep balance at 0 if wallet not found or error
-      setWalletBalance(0);
-    }
-  };
-
-  const fetchStudentProfile = async () => {
-    try {
-      const token = sessionStorage.getItem('accessToken');
-      
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      console.log('Fetching student profile...');
-
-      const response = await fetch(getApiUrl('/api/users/profile'), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Profile response status:', response.status);
-
-      if (response.status === 401) {
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('refreshToken');
-        sessionStorage.removeItem('user');
-        router.push('/login');
-        return;
-      }
-
-      if (response.ok) {
-        const profileData: StudentProfile = await response.json();
-        console.log('Profile data received:', {
-          hasAvatar: !!profileData.profile.avatar,
-          avatarLength: profileData.profile.avatar?.length,
-          avatarStart: profileData.profile.avatar?.substring(0, 50),
-          firstName: profileData.profile.firstName,
-          studentId: profileData.profile.studentId
-        });
-        setStudentData(profileData);
-      } else {
-        throw new Error('Failed to load profile data');
-      }
-
-    } catch (err: any) {
-      setError(err.message || 'Failed to load student data');
-      console.error('Student profile fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Static data (would normally come from APIs)
-  const todaysClasses: Course[] = [
-    {
-      id: '1',
-      name: 'Data Structures',
-      code: 'CS 201',
-      time: '10:00 AM',
-      room: 'Room 301',
-      instructor: 'Dr. Smith',
-      credits: 3
-    },
-    {
-      id: '2',
-      name: 'Calculus II',
-      code: 'MTH 202',
-      time: '2:00 PM',
-      room: 'Room 105',
-      instructor: 'Prof. Johnson',
-      credits: 4
-    },
-    {
-      id: '3',
-      name: 'Physics Lab',
-      code: 'PHY 201L',
-      time: '4:00 PM',
-      room: 'Lab 2',
-      instructor: 'Dr. Wilson',
-      credits: 1
-    }
-  ];
-
-  const recentGrades: Grade[] = [
-    {
-      id: '1',
-      course: 'Database Systems',
-      assignment: 'Midterm Exam',
-      grade: 'A',
-      score: '92/100',
-      status: 'excellent'
-    },
-    {
-      id: '2',
-      course: 'Web Development',
-      assignment: 'Project Assignment',
-      grade: 'A-',
-      score: '88/100',
-      status: 'good'
-    },
-    {
-      id: '3',
-      course: 'Algorithms',
-      assignment: 'Quiz 3',
-      grade: 'B+',
-      score: '85/100',
-      status: 'good'
-    }
-  ];
-
-  const menuItems = [
-    { id: 'dashboard', name: 'Dashboard', icon: '📊' },
-    { id: 'qr-code', name: 'My QR Code', icon: '📱' },
-    { id: 'attendance', name: 'My Attendance', icon: '📋' },
-    { id: 'profile', name: 'My Profile', icon: '👤' },
-    { id: 'courses', name: 'My Courses', icon: '📚' },
-    { id: 'grades', name: 'Grades', icon: '📝' },
-    { id: 'schedule', name: 'Schedule', icon: '🗓️' },
-    { id: 'payments', name: 'Payments', icon: '💳' }
-  ];
-
-  // Calculate academic stats
-  const academicStats = studentData ? {
-    gpa: 3.85,
-    creditsEarned: 84,
-    attendance: 96,
-    walletBalance: walletBalance
-  } : {
-    gpa: 0,
-    creditsEarned: 0,
-    attendance: 0,
-    walletBalance: 0
-  };
-
-  const displayName = studentData 
-    ? `${studentData.profile.firstName} ${studentData.profile.lastName}`
-    : 'Student';
-
-  const initials = studentData 
-    ? profileService.getInitials(studentData.profile.firstName, studentData.profile.lastName)
-    : 'ST';
-
-  const displayData = {
-    name: displayName,
-    studentId: studentData?.profile.studentId || 'Loading...',
-    year: studentData?.profile.year || 'Loading...',
-    university: studentData?.profile.universityName || 'Loading...',
-    avatar: studentData?.profile.avatar || '',
-    initials: initials
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="h-16 w-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-          </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">Error Loading Dashboard</h3>
-          <p className="text-sm sm:text-base text-slate-400 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors text-sm sm:text-base"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
+return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900 flex">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -292,7 +64,7 @@ export default function TestDashboard() {
               </div>
               <span className="text-lg sm:text-xl font-bold text-white">Campus ID</span>
             </div>
-            <button 
+            <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden text-slate-400 hover:text-white"
             >
@@ -306,16 +78,8 @@ export default function TestDashboard() {
         {/* User Profile */}
         <div className="p-4 sm:p-6 border-b border-slate-700/50">
           <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-              {displayData.avatar && displayData.avatar.startsWith('data:image') ? (
-                <img 
-                  src={displayData.avatar} 
-                  alt="Profile" 
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="text-white font-bold text-sm sm:text-base">{displayData.initials}</span>
-              )}
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-sm sm:text-base">{displayData.avatar}</span>
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-white font-semibold text-sm sm:text-base truncate">{displayData.name}</h3>
@@ -351,7 +115,7 @@ export default function TestDashboard() {
 
         {/* Logout */}
         <div className="p-4 border-t border-slate-700/50">
-          <button 
+          <button
             onClick={() => {
               sessionStorage.removeItem('accessToken');
               sessionStorage.removeItem('refreshToken');
@@ -384,23 +148,15 @@ export default function TestDashboard() {
                 {activeSection === 'dashboard' ? 'Overview' : activeSection.replace('-', ' ')}
               </h1>
             </div>
-            
+
             <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
               <div className="text-right hidden sm:block">
                 <p className="text-white font-semibold text-sm">{displayData.year}</p>
                 <p className="text-slate-400 text-xs">Physics</p>
               </div>
-              
-              <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
-                {displayData.avatar && displayData.avatar.startsWith('data:image') ? (
-                  <img 
-                    src={displayData.avatar} 
-                    alt="Profile" 
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-white font-bold text-xs sm:text-base">{displayData.initials}</span>
-                )}
+
+              <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-xs sm:text-base">{displayData.avatar}</span>
               </div>
             </div>
           </div>
@@ -410,9 +166,6 @@ export default function TestDashboard() {
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           {activeSection === 'dashboard' && (
             <div className="space-y-4 sm:space-y-6">
-              {/* Profile Completion Banner */}
-              <ProfileCompletionBanner onNavigateToProfile={() => setActiveSection('profile')} />
-              
               {/* Welcome Card */}
               <div className="bg-slate-800/50 backdrop-blur-sm p-4 sm:p-6 rounded-2xl border border-slate-700/50">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -490,7 +243,7 @@ export default function TestDashboard() {
                   <h3 className="text-base sm:text-lg font-bold text-white mb-4">Today's Classes</h3>
                   <div className="space-y-3">
                     {todaysClasses.map((course) => (
-                      <div key={course.id} className="flex items-center justify-between p-3 sm:p-4 bg-slate-700/30 rounded-lg gap-3">
+                      <div key={course.id} className="flex items-center justify-between p-3 sm:p-4 bg-slate-700/30 rounded-lg">
                         <div className="flex items-center space-x-3 min-w-0 flex-1">
                           <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-bold text-xs sm:text-sm">{course.code.split(' ')[0]}</span>
@@ -500,8 +253,8 @@ export default function TestDashboard() {
                             <p className="text-slate-400 text-xs sm:text-sm truncate">{course.code} • {course.room}</p>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-white font-semibold text-xs sm:text-sm whitespace-nowrap">{course.time}</p>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <p className="text-white font-semibold text-xs sm:text-sm">{course.time}</p>
                           <p className="text-slate-400 text-xs">{course.credits}h</p>
                         </div>
                       </div>
@@ -514,13 +267,13 @@ export default function TestDashboard() {
                   <h3 className="text-base sm:text-lg font-bold text-white mb-4">Recent Grades</h3>
                   <div className="space-y-3">
                     {recentGrades.map((grade) => (
-                      <div key={grade.id} className="flex items-center justify-between p-3 sm:p-4 bg-slate-700/30 rounded-lg gap-3">
+                      <div key={grade.id} className="flex items-center justify-between p-3 sm:p-4 bg-slate-700/30 rounded-lg">
                         <div className="min-w-0 flex-1">
                           <p className="text-white font-medium text-sm sm:text-base truncate">{grade.course}</p>
                           <p className="text-slate-400 text-xs sm:text-sm truncate">{grade.assignment}</p>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap ${
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                             grade.status === 'excellent' ? 'bg-green-900/30 text-green-400' :
                             grade.status === 'good' ? 'bg-blue-900/30 text-blue-400' :
                             'bg-yellow-900/30 text-yellow-400'
@@ -538,7 +291,7 @@ export default function TestDashboard() {
           )}
 
           {/* Other sections placeholder */}
-          {activeSection !== 'dashboard' && activeSection !== 'qr-code' && activeSection !== 'attendance' && activeSection !== 'profile' && activeSection !== 'payments' && (
+          {activeSection !== 'dashboard' && activeSection !== 'qr-code' && activeSection !== 'attendance' && (
             <div className="bg-slate-800/50 backdrop-blur-sm p-6 sm:p-8 rounded-2xl border border-slate-700/50 text-center">
               <div className="text-4xl sm:text-6xl mb-4">
                 {menuItems.find(item => item.id === activeSection)?.icon}
@@ -559,41 +312,8 @@ export default function TestDashboard() {
           {activeSection === 'attendance' && (
             <AttendanceHistory />
           )}
-
-          {/* Profile Section */}
-          {activeSection === 'profile' && (
-            <StudentProfilePage onProfileUpdate={fetchStudentProfile} />
-          )}
-
-          {/* Payments Section */}
-          {activeSection === 'payments' && (
-            <div className="space-y-6">
-              <WalletCard 
-                onTopUpClick={() => setShowTopUpModal(true)}
-                onPayClick={() => setShowPaymentModal(true)}
-              />
-              <TransactionHistory />
-            </div>
-          )}
         </main>
       </div>
-
-      {/* Modals */}
-      <TopUpModal 
-        isOpen={showTopUpModal}
-        onClose={() => setShowTopUpModal(false)}
-        onSuccess={() => {
-          fetchWalletBalance();
-        }}
-      />
-      
-      <PaymentModal 
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onSuccess={() => {
-          fetchWalletBalance();
-        }}
-      />
     </div>
   );
-}
+

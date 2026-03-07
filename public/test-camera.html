@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e293b;
+            color: white;
+        }
+        button {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+            width: 100%;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #10b981;
+        }
+        .error {
+            background: #ef4444;
+        }
+        .info {
+            background: #3b82f6;
+        }
+        .warning {
+            background: #f59e0b;
+        }
+    </style>
+</head>
+<body>
+    <h1>📱 Camera Access Test</h1>
+    <p>This page tests if your browser can access the camera.</p>
+    
+    <button onclick="testCamera()">Test Camera Access</button>
+    <button onclick="stopCamera()">Stop Camera</button>
+    
+    <div id="status"></div>
+    <video id="video" autoplay playsinline></video>
+    
+    <div class="info status">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Tap "Test Camera Access" button</li>
+            <li>Grant camera permission when prompted</li>
+            <li>You should see camera feed below</li>
+            <li>If it works here, the issue is in the React component</li>
+            <li>If it doesn't work, it's a browser/permission issue</li>
+        </ol>
+    </div>
+    
+    <div class="info status">
+        <h3>Browser Info:</h3>
+        <p><strong>User Agent:</strong> <span id="userAgent"></span></p>
+        <p><strong>HTTPS:</strong> <span id="https"></span></p>
+        <p><strong>MediaDevices API:</strong> <span id="mediaDevices"></span></p>
+    </div>
+
+    <script>
+        // Display browser info
+        document.getElementById('userAgent').textContent = navigator.userAgent;
+        document.getElementById('https').textContent = window.location.protocol === 'https:' ? '✅ Yes' : '❌ No (Camera requires HTTPS)';
+        document.getElementById('mediaDevices').textContent = navigator.mediaDevices ? '✅ Supported' : '❌ Not Supported';
+
+        let stream = null;
+
+        async function testCamera() {
+            const statusDiv = document.getElementById('status');
+            const video = document.getElementById('video');
+            
+            try {
+                statusDiv.innerHTML = '<div class="info status">🔄 Requesting camera access...</div>';
+                
+                // Check if mediaDevices is supported
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera API not supported in this browser');
+                }
+                
+                // Request camera access
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                
+                // Display video
+                video.srcObject = stream;
+                video.style.display = 'block';
+                
+                statusDiv.innerHTML = '<div class="success status">✅ Camera access granted! You should see the camera feed above.</div>';
+                
+            } catch (error) {
+                console.error('Camera error:', error);
+                
+                let errorMessage = '';
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errorMessage = '❌ Camera permission denied. Please allow camera access in your browser settings.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = '❌ No camera found on this device.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = '❌ Camera is already in use by another application.';
+                } else if (error.name === 'SecurityError') {
+                    errorMessage = '❌ Security error. Make sure you\'re using HTTPS.';
+                } else {
+                    errorMessage = `❌ Error: ${error.message}`;
+                }
+                
+                statusDiv.innerHTML = `<div class="error status">${errorMessage}</div>`;
+                video.style.display = 'none';
+            }
+        }
+
+        function stopCamera() {
+            const video = document.getElementById('video');
+            const statusDiv = document.getElementById('status');
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                video.style.display = 'none';
+                stream = null;
+                statusDiv.innerHTML = '<div class="info status">📷 Camera stopped.</div>';
+            } else {
+                statusDiv.innerHTML = '<div class="warning status">⚠️ No camera stream to stop.</div>';
+            }
+        }
+    </script>
+</body>
+</html>

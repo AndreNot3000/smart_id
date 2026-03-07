@@ -41,6 +41,7 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [cameraError, setCameraError] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const qrCodeRegionId = "qr-reader";
@@ -53,9 +54,35 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
       setSuccess('');
       setScannedUser(null);
 
-      // Request camera permission
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      stream.getTracks().forEach(track => track.stop()); // Stop the test stream
+      // Check if mediaDevices is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError('Camera API is not supported in this browser. Please use a modern browser like Chrome or Safari.');
+        return;
+      }
+
+      // Check if the DOM element exists
+      const element = document.getElementById(qrCodeRegionId);
+      if (!element) {
+        setCameraError('Scanner element not ready. Please try again.');
+        console.error('QR reader element not found in DOM');
+        return;
+      }
+
+      // Stop any existing scanner first
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+          scannerRef.current.clear();
+        } catch (e) {
+          console.log('No active scanner to stop');
+        }
+      }
+
+      // Set scanning state first to show the container
+      setIsScanning(true);
+
+      // Wait for DOM to update
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       // Initialize Html5Qrcode
       const html5QrCode = new Html5Qrcode(qrCodeRegionId);
@@ -63,10 +90,24 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
 
       const config = {
         fps: 10,
-        qrbox: { width: 250, height: 250 },
+        qrbox: function(viewfinderWidth: number, viewfinderHeight: number) {
+          // Make QR box responsive - 70% of the smaller dimension
+          const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+          const qrboxSize = Math.floor(minEdgeSize * 0.7);
+          return {
+            width: qrboxSize,
+            height: qrboxSize
+          };
+        },
         aspectRatio: 1.0,
+        videoConstraints: {
+          facingMode: "environment",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       };
 
+      // Start the scanner - this will request camera permission
       await html5QrCode.start(
         { facingMode: "environment" }, // Use back camera on mobile
         config,
@@ -74,16 +115,27 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
         onScanFailure
       );
 
-      setIsScanning(true);
+      console.log('Scanner started successfully');
 
     } catch (err: any) {
       console.error('Scanner start error:', err);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setCameraError('Camera permission denied. Please allow camera access to scan QR codes.');
-      } else if (err.name === 'NotFoundError') {
+      setIsScanning(false);
+      
+      // Handle different error types
+      const errorMessage = err.message || err.toString();
+      
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || errorMessage.includes('Permission')) {
+        setCameraError('Camera permission denied. Please allow camera access in your browser settings and refresh the page.');
+      } else if (err.name === 'NotFoundError' || errorMessage.includes('Camera not found')) {
         setCameraError('No camera found on this device.');
+      } else if (err.name === 'NotReadableError' || errorMessage.includes('in use')) {
+        setCameraError('Camera is already in use by another application.');
+      } else if (errorMessage.includes('Scanner is already running')) {
+        setCameraError('Scanner is already running. Please stop it first.');
+      } else if (errorMessage.includes('not found')) {
+        setCameraError('Scanner initialization failed. Please refresh the page and try again.');
       } else {
-        setCameraError('Failed to start camera. Please try again.');
+        setCameraError(`Failed to start camera: ${errorMessage}`);
       }
     }
   };
@@ -104,6 +156,9 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
   // Handle successful scan
   const onScanSuccess = async (decodedText: string) => {
     try {
+      console.log('QR Code detected:', decodedText);
+      setDebugInfo(`✅ QR Detected: ${decodedText.substring(0, 50)}...`);
+      
       // Stop scanner immediately after successful scan
       await stopScanner();
 
@@ -114,8 +169,18 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
       // Store the QR data for later use
       setScannedQRData(decodedText);
 
+      // Show immediate feedback
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(200);
+      }
+
+      setDebugInfo('🔄 Verifying with backend...');
+
       // Verify QR code and get user information
       const response = await qrService.verifyQRCode(decodedText, purpose, location, notes);
+
+      console.log('Verification response:', response);
+      setDebugInfo(`✅ Response received: ${response.verified ? 'Verified' : 'Failed'}`);
 
       if (response.verified) {
         setScannedUser({
@@ -123,16 +188,22 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
           userInfo: response.userInfo
         });
         setSuccess(`${response.userType === 'student' ? 'Student' : 'Lecturer'} verified successfully!`);
+        setDebugInfo('');
         
-        // Play success sound (optional)
+        // Play success sound
         if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-          navigator.vibrate(200);
+          navigator.vibrate([200, 100, 200]);
         }
+      } else {
+        setError('QR code verification failed. Invalid or expired QR code.');
+        setDebugInfo('❌ Verification failed');
       }
 
     } catch (err: any) {
-      setError(err.message || 'Failed to verify QR code');
       console.error('QR verification error:', err);
+      const errorMsg = err.message || 'Failed to verify QR code';
+      setError(errorMsg);
+      setDebugInfo(`❌ Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -214,17 +285,34 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
 
         {/* Camera Error */}
         {cameraError && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-700/50 rounded-lg">
+          <div className="mb-6 p-4 sm:p-6 bg-red-900/20 border border-red-700/50 rounded-lg">
             <div className="flex items-start space-x-3">
               <svg className="h-6 w-6 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
-              <div className="text-left">
-                <p className="text-red-400 font-semibold mb-1">Camera Access Required</p>
-                <p className="text-red-300 text-sm">{cameraError}</p>
-                <p className="text-red-300 text-sm mt-2">
-                  Please check your browser settings and allow camera access for this site.
-                </p>
+              <div className="text-left flex-1">
+                <p className="text-red-400 font-semibold mb-2">Camera Access Required</p>
+                <p className="text-red-300 text-sm mb-3">{cameraError}</p>
+                
+                <div className="bg-red-900/30 p-3 rounded-lg mb-3">
+                  <p className="text-red-200 font-semibold text-sm mb-2">How to fix:</p>
+                  <ol className="text-red-200 text-xs sm:text-sm space-y-1 list-decimal list-inside">
+                    <li>Tap the lock icon (🔒) or info icon (ⓘ) in the address bar</li>
+                    <li>Find "Camera" in permissions</li>
+                    <li>Change to "Allow"</li>
+                    <li>Refresh this page</li>
+                  </ol>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setCameraError('');
+                    startScanner();
+                  }}
+                  className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+                >
+                  Try Again
+                </button>
               </div>
             </div>
           </div>
@@ -254,14 +342,40 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
           </div>
         )}
 
-        {/* Scanner View */}
-        {isScanning && (
-          <div className="mb-6">
-            <div id={qrCodeRegionId} className="mx-auto mb-4 rounded-lg overflow-hidden"></div>
+        {/* Scanner View - Always render the div but hide when not scanning */}
+        <div className={isScanning ? "space-y-4" : "hidden"}>
+          {/* Debug Info */}
+          {debugInfo && (
+            <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-xl p-3 backdrop-blur-sm">
+              <p className="text-yellow-300 text-sm font-mono">{debugInfo}</p>
+            </div>
+          )}
+
+          {/* Camera View */}
+          <div className="relative">
+            <div 
+              id={qrCodeRegionId} 
+              className="w-full rounded-xl overflow-hidden bg-slate-800 shadow-2xl border-2 border-blue-500/30" 
+              style={{ 
+                maxHeight: '450px',
+                maxWidth: '100%',
+                display: 'block',
+                position: 'relative'
+              }}
+            ></div>
             
+            {/* Scanning indicator */}
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-500/90 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg flex items-center space-x-2">
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span>Scanning...</span>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex flex-col items-center space-y-3">
             <button
               onClick={stopScanner}
-              className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 mx-auto"
+              className="bg-red-600 text-white px-8 py-3 rounded-xl hover:bg-red-700 transition-all shadow-lg hover:shadow-xl flex items-center space-x-2 font-medium"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -269,19 +383,31 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
               <span>Stop Scanner</span>
             </button>
 
-            <div className="mt-4 p-3 bg-blue-900/20 border border-blue-700/50 rounded-lg">
-              <p className="text-blue-300 text-sm">
-                <span className="font-semibold">📱 Tip:</span> Position the QR code within the frame for automatic scanning
+            <div className="p-4 bg-blue-900/30 border border-blue-700/50 rounded-xl max-w-md backdrop-blur-sm">
+              <p className="text-blue-300 text-sm text-center">
+                <span className="font-semibold">📱 Tip:</span> Hold the QR code steady within the frame
               </p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Loading State */}
         {loading && (
-          <div className="mb-6">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-slate-300">Verifying QR code...</p>
+          <div className="mb-6 bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className="text-white font-semibold text-lg">Verifying QR Code...</p>
+                <p className="text-slate-400 text-sm mt-1">Please wait</p>
+              </div>
+            </div>
           </div>
         )}
 

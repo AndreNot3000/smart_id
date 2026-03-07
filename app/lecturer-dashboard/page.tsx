@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import QRScanner from "@/components/qr/QRScanner";
+import QRScannerNew from "@/components/qr/QRScannerNew";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
 import { getApiUrl } from "@/lib/config";
 
@@ -793,7 +793,7 @@ export default function LecturerDashboard() {
           )}
 
           {activeSection === 'qr-scanner' && (
-            <QRScanner />
+            <QRScannerNew />
           )}
 
           {activeSection === 'student-history' && (
