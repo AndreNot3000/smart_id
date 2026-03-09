@@ -243,7 +243,11 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        // Handle specific error cases
+        if (data.requiresVerification) {
+          throw new Error(data.error || "Please verify your email before logging in");
+        }
+        throw new Error(data.error || data.message || "Login failed");
       }
 
       // Clear any existing localStorage data to prevent conflicts
@@ -296,7 +300,7 @@ export default function LoginPage() {
         if (data.field) {
           setFieldErrors(prev => ({
             ...prev,
-            [data.field]: data.error
+            [data.field]: data.error || data.message
           }));
         } else {
           setError(data.error || data.message || "Password change failed");

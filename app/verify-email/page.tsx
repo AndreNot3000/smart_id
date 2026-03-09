@@ -50,7 +50,7 @@ function VerifyEmailContent() {
         setMessage('Your email has been verified successfully! Your account is now active.');
       } else {
         setStatus('error');
-        setMessage(data.message || 'Email verification failed. The link may be expired or invalid.');
+        setMessage(data.error || data.message || 'Email verification failed. The link may be expired or invalid.');
       }
     } catch (error) {
       setStatus('error');

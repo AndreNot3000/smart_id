@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to send reset code");
+        throw new Error(data.error || data.message || "Failed to send reset code");
       }
 
       setSuccess(true);

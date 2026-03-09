@@ -169,7 +169,16 @@ export default function RegisterInstitutionPage() {
       console.log('Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.message || data.error || 'Registration failed');
+        // Handle validation errors from backend
+        if (data.details && Array.isArray(data.details)) {
+          const backendErrors: {[key: string]: string} = {};
+          data.details.forEach((detail: any) => {
+            backendErrors[detail.field] = detail.message;
+          });
+          setValidationErrors(backendErrors);
+          throw new Error(data.error || 'Validation failed');
+        }
+        throw new Error(data.error || data.message || 'Registration failed');
       }
 
       // Store email and institution info for OTP verification

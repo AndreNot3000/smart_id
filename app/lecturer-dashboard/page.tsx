@@ -51,6 +51,32 @@ interface ScannedStudent {
   time: string;
 }
 
+interface Student {
+  id: string;
+  email: string;
+  status: string;
+  emailVerified: boolean;
+  profile: {
+    firstName: string;
+    lastName: string;
+    studentId: string;
+    department: string;
+    year: string;
+    avatar?: string;
+    phone?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface StudentsData {
+  department: string;
+  totalStudents: number;
+  students?: Student[];
+  groupedByLevel?: Record<string, Student[]>;
+  levels: string[];
+}
+
 export default function LecturerDashboard() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState('overview');
@@ -61,6 +87,12 @@ export default function LecturerDashboard() {
   const [scannedStudents, setScannedStudents] = useState<ScannedStudent[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [searchStudentId, setSearchStudentId] = useState<string>('');
+  
+  // Student records states
+  const [studentsData, setStudentsData] = useState<StudentsData | null>(null);
+  const [selectedLevel, setSelectedLevel] = useState<string>('');
+  const [studentSearch, setStudentSearch] = useState<string>('');
+  const [loadingStudents, setLoadingStudents] = useState(false);
   
   // Data states
   const [lecturerData, setLecturerData] = useState({
@@ -283,7 +315,7 @@ export default function LecturerDashboard() {
     { id: 'attendance', name: 'Attendance Management', icon: '📅' },
     { id: 'courses', name: 'Weekly Courses', icon: '📚' },
     { id: 'grades', name: 'Grades & Assessment', icon: '📝' },
-    { id: 'students', name: 'Student Records', icon: '👥' },
+    { id: 'student-records', name: 'Student Records', icon: '👥' },
     { id: 'schedule', name: 'Class Schedule', icon: '🗓️' },
     { id: 'announcements', name: 'Announcements', icon: '📢' },
     { id: 'office-hours', name: 'Office Hours', icon: '🕐' },
@@ -291,6 +323,47 @@ export default function LecturerDashboard() {
     { id: 'qr-code', name: 'My QR Code', icon: '🆔' },
     { id: 'settings', name: 'Settings', icon: '⚙️' }
   ];
+
+  // Fetch students by department
+  const fetchStudents = async (level?: string, search?: string) => {
+    setLoadingStudents(true);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+
+      const params = new URLSearchParams();
+      if (level) params.append('level', level);
+      if (search) params.append('search', search);
+
+      const response = await fetch(
+        getApiUrl(`/api/lecturers/students?${params.toString()}`),
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data: StudentsData = await response.json();
+        setStudentsData(data);
+      } else {
+        console.error('Failed to fetch students');
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // Fetch students when student-records section is active
+  useEffect(() => {
+    if (activeSection === 'student-records') {
+      fetchStudents(selectedLevel, studentSearch);
+    }
+  }, [activeSection, selectedLevel, studentSearch]);
 
   const handleQuickAction = (actionId: string) => {
     if (actionId === 'start-scanner') {
@@ -1018,8 +1091,195 @@ export default function LecturerDashboard() {
             </div>
           )}
 
+          {activeSection === 'student-records' && (
+            <div className="space-y-6">
+              <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
+                <h2 className="text-xl font-bold text-white mb-2">Student Records</h2>
+                <p className="text-slate-400 mb-6">View students in your department ({lecturerData.department})</p>
+                
+                {/* Search and Filter */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Filter by Level
+                    </label>
+                    <select
+                      value={selectedLevel}
+                      onChange={(e) => setSelectedLevel(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Levels</option>
+                      {studentsData?.levels.map(level => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Search Students
+                    </label>
+                    <input
+                      type="text"
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      placeholder="Search by name, ID, or email..."
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Loading State */}
+                {loadingStudents && (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-slate-400">Loading students...</p>
+                  </div>
+                )}
+
+                {/* Students List */}
+                {!loadingStudents && studentsData && (
+                  <>
+                    {/* Summary */}
+                    <div className="bg-slate-700/30 rounded-lg p-4 mb-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">
+                        <div>
+                          <div className="text-2xl font-bold text-blue-400">{studentsData.totalStudents}</div>
+                          <div className="text-slate-400 text-sm">Total Students</div>
+                        </div>
+                        <div>
+                          <div className="text-2xl font-bold text-green-400">{studentsData.levels.length}</div>
+                          <div className="text-slate-400 text-sm">Levels</div>
+                        </div>
+                        <div className="hidden sm:block">
+                          <div className="text-2xl font-bold text-purple-400">{studentsData.department}</div>
+                          <div className="text-slate-400 text-sm">Department</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Display by selected level or all levels */}
+                    {selectedLevel ? (
+                      // Show students for selected level
+                      <div>
+                        <h3 className="text-lg font-bold text-white mb-4">
+                          {selectedLevel} Students ({studentsData.students?.length || 0})
+                        </h3>
+                        <div className="space-y-3">
+                          {studentsData.students && studentsData.students.length > 0 ? (
+                            studentsData.students.map((student) => (
+                              <div key={student.id} className="bg-slate-700/30 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-4">
+                                    <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                      <span className="text-white font-bold">
+                                        {student.profile.firstName[0]}{student.profile.lastName[0]}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <h4 className="text-white font-medium">
+                                        {student.profile.firstName} {student.profile.lastName}
+                                      </h4>
+                                      <p className="text-slate-400 text-sm">{student.profile.studentId}</p>
+                                      <p className="text-slate-500 text-xs">{student.email}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                      student.status === 'active' ? 'bg-green-900/30 text-green-400' :
+                                      student.status === 'pending' ? 'bg-yellow-900/30 text-yellow-400' :
+                                      'bg-red-900/30 text-red-400'
+                                    }`}>
+                                      {student.status}
+                                    </span>
+                                    {student.profile.phone && (
+                                      <p className="text-slate-400 text-xs mt-1">{student.profile.phone}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center py-8">
+                              <p className="text-slate-400">No students found for this level</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      // Show all levels grouped
+                      <div className="space-y-6">
+                        {studentsData.levels.map((level) => {
+                          const levelStudents = studentsData.groupedByLevel?.[level] || [];
+                          return (
+                            <div key={level}>
+                              <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-lg font-bold text-white">{level}</h3>
+                                <span className="text-slate-400 text-sm">{levelStudents.length} students</span>
+                              </div>
+                              <div className="space-y-3">
+                                {levelStudents.slice(0, 5).map((student) => (
+                                  <div key={student.id} className="bg-slate-700/30 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-4">
+                                        <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                          <span className="text-white font-bold">
+                                            {student.profile.firstName[0]}{student.profile.lastName[0]}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <h4 className="text-white font-medium">
+                                            {student.profile.firstName} {student.profile.lastName}
+                                          </h4>
+                                          <p className="text-slate-400 text-sm">{student.profile.studentId}</p>
+                                          <p className="text-slate-500 text-xs">{student.email}</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                          student.status === 'active' ? 'bg-green-900/30 text-green-400' :
+                                          student.status === 'pending' ? 'bg-yellow-900/30 text-yellow-400' :
+                                          'bg-red-900/30 text-red-400'
+                                        }`}>
+                                          {student.status}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {levelStudents.length > 5 && (
+                                  <button
+                                    onClick={() => setSelectedLevel(level)}
+                                    className="w-full text-center py-2 text-blue-400 hover:text-blue-300 text-sm"
+                                  >
+                                    View all {levelStudents.length} students in {level} →
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* No results */}
+                    {studentsData.totalStudents === 0 && (
+                      <div className="text-center py-12">
+                        <div className="h-16 w-16 bg-slate-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </div>
+                        <p className="text-slate-400">No students found in your department</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Other sections placeholder */}
-          {!['overview', 'qr-scanner', 'attendance', 'courses', 'qr-code'].includes(activeSection) && (
+          {!['overview', 'qr-scanner', 'attendance', 'courses', 'qr-code', 'student-records', 'student-history'].includes(activeSection) && (
             <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 text-center">
               <div className="text-6xl mb-4">
                 {menuItems.find(item => item.id === activeSection)?.icon}

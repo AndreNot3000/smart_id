@@ -95,7 +95,7 @@ export default function VerifyOTPPage() {
       console.log('Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.message || data.error || 'Verification failed');
+        throw new Error(data.error || data.message || 'Verification failed');
       }
 
       // Show success message
@@ -140,14 +140,16 @@ export default function VerifyOTPPage() {
         body: JSON.stringify({ email })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to resend code');
+        throw new Error(data.error || data.message || 'Failed to resend code');
       }
       
       // Show success message (optional)
       console.log('OTP resent successfully');
-    } catch (err) {
-      setError('Failed to resend code. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend code. Please try again.');
     }
   };
 
