@@ -1858,12 +1858,12 @@ export default function LecturerDashboard() {
 
                   <div className="flex items-center gap-1 p-1 rounded-lg overflow-x-auto"
                        style={{ background: 'var(--surface-0)', border: '1px solid var(--border-subtle)' }}>
-                    {[
+                    {([
                       { id: 'materials', label: 'Materials', icon: 'bookOpen' as const },
                       { id: 'announcements', label: 'Announcements', icon: 'megaphone' as const },
                       { id: 'assignments', label: 'Assignments', icon: 'edit' as const },
                       { id: 'quizzes', label: 'Quizzes', icon: 'award' as const },
-                    ].map(tab => {
+                    ] as const).map(tab => {
                       const active = courseTab === tab.id;
                       return (
                         <button
@@ -3289,7 +3289,7 @@ export default function LecturerDashboard() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => { setShowAddSchedule(true); setEditingSchedule(null); setScheduleForm({ courseCode: '', courseName: '', date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', venue: '', level: '100L', recurringDay: 'Monday', recurringStart: '', recurringEnd: '' }); setScheduleMode('single'); setScheduleError(''); }}
+                        onClick={() => { setShowAddSchedule(true); setEditingSchedule(null); setScheduleForm({ courseId: '', courseCode: '', courseName: '', date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', venue: '', level: '100L', recurringDay: 'Monday', recurringStart: '', recurringEnd: '' }); setScheduleMode('single'); setScheduleError(''); }}
                         className="btn btn-primary text-sm shrink-0"
                       >
                         <Icon name="plus" size={14} />
@@ -3387,7 +3387,7 @@ export default function LecturerDashboard() {
                     <p className="text-[var(--text-muted)] text-sm mt-1 mb-4">Get started by adding your first class.</p>
                     <button
                       type="button"
-                      onClick={() => { setShowAddSchedule(true); setEditingSchedule(null); setScheduleForm({ courseCode: '', courseName: '', date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', venue: '', level: '100L', recurringDay: 'Monday', recurringStart: '', recurringEnd: '' }); setScheduleMode('single'); setScheduleError(''); }}
+                      onClick={() => { setShowAddSchedule(true); setEditingSchedule(null); setScheduleForm({ courseId: '', courseCode: '', courseName: '', date: new Date().toISOString().split('T')[0], startTime: '', endTime: '', venue: '', level: '100L', recurringDay: 'Monday', recurringStart: '', recurringEnd: '' }); setScheduleMode('single'); setScheduleError(''); }}
                       className="btn btn-primary text-sm"
                     >
                       <Icon name="plus" size={14} />

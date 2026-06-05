@@ -91,7 +91,7 @@ export default function TestDashboard() {
   const [feedLastSeen, setFeedLastSeen] = useState<number>(0);
   // When opening a course from the activity feed, remember which tab to land on
   // (the selectedCourse effect otherwise resets it to "materials").
-  const pendingCourseTabRef = useRef<string | null>(null);
+  const pendingCourseTabRef = useRef<'materials' | 'announcements' | 'assignments' | 'quizzes' | null>(null);
 
   // Course states
   const [courses, setCourses] = useState<any[]>([]);
@@ -2068,12 +2068,12 @@ export default function TestDashboard() {
 
                     <div className="flex items-center gap-1 p-1 rounded-lg overflow-x-auto"
                          style={{ background: 'var(--surface-0)', border: '1px solid var(--border-subtle)' }}>
-                      {[
+                      {([
                         { id: 'materials', label: 'Materials', icon: 'bookOpen' as const, count: courseMaterials.length },
                         { id: 'announcements', label: 'Announcements', icon: 'megaphone' as const, count: studentAnnouncements.length },
                         { id: 'assignments', label: 'Assignments', icon: 'edit' as const, count: studentAssignments.length },
                         { id: 'quizzes', label: 'Quizzes', icon: 'award' as const, count: studentQuizzes.length },
-                      ].map(tab => {
+                      ] as const).map(tab => {
                         const active = studentCourseTab === tab.id;
                         return (
                           <button

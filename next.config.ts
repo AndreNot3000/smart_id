@@ -9,6 +9,11 @@ const BACKEND_PROXY_TARGET =
 const USE_PROXY = !process.env.NEXT_PUBLIC_API_URL;
 
 const nextConfig: NextConfig = {
+  // Use Windows/system TLS certs during Turbopack build (avoids Google Fonts fetch
+  // failures when antivirus TLS inspection is enabled).
+  experimental: {
+    turbopackUseSystemTlsCerts: true,
+  },
   async rewrites() {
     if (!USE_PROXY) return [];
     return [
