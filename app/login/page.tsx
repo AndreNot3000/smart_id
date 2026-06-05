@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getApiUrl } from "@/lib/config";
+import { getApiUrl, API_BASE_OVERRIDE_KEY } from "@/lib/config";
 
 // First Login Password Change Modal Component
 function FirstLoginModal({ isOpen, onClose, onPasswordChange, loading, fieldErrors, setFieldErrors }: {
@@ -228,7 +228,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(getApiUrl("/api/auth/login"), {
+      const loginUrl = getApiUrl("/api/auth/login");
+      const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -240,6 +241,20 @@ export default function LoginPage() {
         }),
       });
 
+      // Detect HTML responses (404 / 500 / interstitial pages) up front so the
+      // user sees a useful message instead of a JSON parse error.
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const preview = (await response.text()).slice(0, 120);
+        console.error(
+          `[login] Expected JSON from ${loginUrl} but got ${contentType || "no content-type"}. Body: ${preview}`,
+        );
+        throw new Error(
+          `Couldn't reach the API server (got ${response.status} ${response.statusText || "HTML"}). ` +
+            `Make sure the backend is running and Next.js was restarted after config changes.`,
+        );
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -250,8 +265,14 @@ export default function LoginPage() {
         throw new Error(data.error || data.message || "Login failed");
       }
 
-      // Clear any existing localStorage data to prevent conflicts
+      // Clear any existing localStorage data to prevent conflicts,
+      // but preserve the runtime API base override so mobile devices don't
+      // lose their tunnel URL after logging in.
+      const apiOverride = localStorage.getItem(API_BASE_OVERRIDE_KEY);
       localStorage.clear();
+      if (apiOverride) {
+        localStorage.setItem(API_BASE_OVERRIDE_KEY, apiOverride);
+      }
 
       // Store tokens and user data in sessionStorage (tab-specific)
       sessionStorage.setItem("accessToken", data.accessToken);

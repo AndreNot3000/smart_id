@@ -1,579 +1,794 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  const [navScrolled, setNavScrolled] = useState(false);
+
   useEffect(() => {
-    // Simple scroll reveal
     const observerOptions = {
-      threshold: 0.1,
-      rootMargin: '0px 0px -50px 0px'
+      threshold: 0.12,
+      rootMargin: "0px 0px -60px 0px",
     };
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('revealed');
-        }
+        if (entry.isIntersecting) entry.target.classList.add("revealed");
       });
     }, observerOptions);
 
-    const scrollElements = document.querySelectorAll('.scroll-reveal');
-    scrollElements.forEach((el) => observer.observe(el));
+    document.querySelectorAll(".scroll-reveal").forEach((el) => observer.observe(el));
+
+    const onScroll = () => setNavScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {
       observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
     };
   }, []);
 
   return (
-    <div className="min-h-screen">
-      {/* Navigation - Fixed */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 lg:px-8 navbar-blur bg-slate-900/30 border-b border-slate-700/50">
-        <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center icon-hover">
-            <span className="text-white font-bold text-sm">ID</span>
+    <div className="relative min-h-screen overflow-hidden bg-[#070d1c] text-slate-100">
+      {/* Decorative background */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-grid-academic opacity-[0.05]" />
+        <div className="absolute -top-40 left-1/3 h-[640px] w-[640px] -translate-x-1/2 rounded-full bg-blue-600/20 blur-[140px]" />
+        <div className="absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/3 rounded-full bg-amber-500/10 blur-[160px]" />
+        <div className="absolute top-1/2 left-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-indigo-500/10 blur-[140px]" />
+      </div>
+
+      {/* Top announcement strip */}
+      <div className="relative z-40 border-b border-amber-400/15 bg-gradient-to-r from-transparent via-amber-400/[0.06] to-transparent backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2 text-center text-[12px] tracking-wide text-amber-100/80">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-amber-300">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
+            </span>
+            LIVE
+          </span>
+          <span className="hidden sm:inline">·</span>
+          <span>Onboarding Nigerian universities for the 2026/2027 academic session</span>
+          <Link href="/register-institution" className="hidden font-semibold text-amber-200 underline-offset-4 hover:underline sm:inline">
+            Register your institution →
+          </Link>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav
+        className={`sticky top-0 z-50 transition-all duration-300 ${
+          navScrolled
+            ? "border-b border-white/10 bg-[#070d1c]/85 backdrop-blur-xl"
+            : "bg-transparent"
+        }`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="relative h-9 w-9">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-amber-500 opacity-90 transition-all group-hover:opacity-100" />
+              <div className="absolute inset-[2px] flex items-center justify-center rounded-[10px] bg-[#070d1c]">
+                <span className="bg-gradient-to-br from-amber-300 to-amber-500 bg-clip-text text-sm font-black tracking-tight text-transparent">
+                  CI
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-lg font-semibold tracking-tight text-white">Campus ID</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Univ&middot;OS</span>
+            </div>
+          </Link>
+
+          <div className="hidden items-center gap-8 md:flex">
+            <a href="#features" className="text-sm text-slate-300 transition hover:text-white">Platform</a>
+            <a href="#roles" className="text-sm text-slate-300 transition hover:text-white">For Universities</a>
+            <a href="#security" className="text-sm text-slate-300 transition hover:text-white">Security</a>
+            <Link href="/news" className="text-sm text-slate-300 transition hover:text-white">News</Link>
           </div>
-          <span className="text-xl font-bold text-white">Campus ID</span>
-        </div>
-        <div className="hidden md:flex items-center space-x-8">
-          <a href="#features" className="text-slate-300 hover:text-white transition-all duration-300 hover:scale-105">Features</a>
-          <a href="#about" className="text-slate-300 hover:text-white transition-all duration-300 hover:scale-105">About</a>
-          <a href="#contact" className="text-slate-300 hover:text-white transition-all duration-300 hover:scale-105">Contact</a>
-          <Link href="/news" className="text-slate-300 hover:text-white transition-all duration-300 hover:scale-105">
-            News & Updates
-          </Link>
-        </div>
-        <div className="flex items-center space-x-3">
-          <Link href="/news">
-            <button className="btn-secondary text-white border border-slate-600 px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105">
-              📰 News
-            </button>
-          </Link>
-          <Link href="/login">
-            <button className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg">
-              Sign In
-            </button>
-          </Link>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="hidden text-sm font-medium text-slate-200 transition hover:text-white sm:inline-block"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/register-institution"
+              className="group relative inline-flex items-center gap-1.5 overflow-hidden rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#070d1c] shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_8px_30px_-8px_rgba(244,184,76,0.5)] transition-all hover:shadow-[0_0_0_1px_rgba(244,184,76,0.4),0_10px_40px_-8px_rgba(244,184,76,0.6)]"
+            >
+              <span>Request access</span>
+              <svg className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main className="px-6 lg:px-8 pt-20">
-        <div className="mx-auto max-w-7xl pt-20 pb-32 sm:pt-32 sm:pb-40">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-6xl scroll-reveal">
-              Your Digital Campus
-              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent"> Identity</span>
+      {/* Hero */}
+      <section className="relative px-6 pt-20 pb-24 sm:pt-28 sm:pb-32 lg:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-12">
+          <div className="lg:col-span-7">
+            <div className="scroll-reveal inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-slate-300 backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="font-medium tracking-wide">Multi-tenant SaaS · Built for African universities</span>
+            </div>
+
+            <h1 className="scroll-reveal mt-7 font-display text-[44px] font-semibold leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-[72px]">
+              The operating system
+              <br />
+              for the modern
+              <span className="relative ml-3 inline-block">
+                <span className="bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 bg-clip-text italic text-transparent">
+                  university.
+                </span>
+                <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none" preserveAspectRatio="none">
+                  <path d="M2 9C50 3 150 3 298 9" stroke="url(#u-underline)" strokeWidth="3" strokeLinecap="round" />
+                  <defs>
+                    <linearGradient id="u-underline" x1="0" y1="0" x2="300" y2="0">
+                      <stop offset="0%" stopColor="#fcd34d" stopOpacity="0" />
+                      <stop offset="50%" stopColor="#f59e0b" />
+                      <stop offset="100%" stopColor="#fcd34d" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
             </h1>
-            <p className="mt-6 text-lg leading-8 text-slate-300 max-w-2xl mx-auto scroll-reveal">
-              Secure, convenient, and modern student ID system. Access buildings, pay for meals, 
-              and manage your campus life with a single digital identity.
+
+            <p className="scroll-reveal mt-7 max-w-xl text-[17px] leading-relaxed text-slate-300/90">
+              Replace plastic ID cards, paper attendance sheets, and scattered campus tools with one secure
+              platform. <span className="text-slate-100">Campus ID</span> unifies identity, attendance, payments and
+              learning &mdash; for every student, lecturer and administrator.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6 scroll-reveal">
-              <Link href="/register-institution">
-                <button className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg text-lg font-semibold">
-                  Register Your Institution
-                </button>
+
+            <div className="scroll-reveal mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <Link
+                href="/register-institution"
+                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 px-7 py-3.5 text-[15px] font-semibold text-[#1a1305] shadow-[0_10px_40px_-10px_rgba(245,158,11,0.7)] transition-all hover:shadow-[0_14px_50px_-10px_rgba(245,158,11,0.9)]"
+              >
+                <span>Onboard your institution</span>
+                <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
               </Link>
-              <Link href="/login">
-                <button className="btn-secondary text-white border border-slate-600 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-slate-700/50 transition-colors">
-                  Sign In
-                </button>
+              <Link
+                href="/login"
+                className="group inline-flex items-center gap-2 px-2 text-[15px] font-medium text-slate-200 transition hover:text-white"
+              >
+                <span className="relative">
+                  Sign in to your campus
+                  <span className="absolute -bottom-0.5 left-0 h-px w-0 bg-white transition-all group-hover:w-full" />
+                </span>
+                <svg className="h-4 w-4 opacity-70 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </Link>
+            </div>
+
+            <div className="scroll-reveal mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <svg className="h-3.5 w-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Production-deployed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className="h-3.5 w-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>JWT &amp; bcrypt security</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className="h-3.5 w-3.5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Naira-native payments</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Hero visual: floating ID card */}
+          <div className="scroll-reveal relative lg:col-span-5">
+            <div className="relative mx-auto h-[460px] w-full max-w-[420px]">
+              <div className="hero-scene">
+                {/* Floating campus icons */}
+                <div className="hero-float-icon hero-float-1">📚</div>
+                <div className="hero-float-icon hero-float-2">🎓</div>
+                <div className="hero-float-icon hero-float-3">🏛️</div>
+                <div className="hero-float-icon hero-float-4">✏️</div>
+
+                {/* The ID Card */}
+                <div className="hero-id-card">
+                  <div className="id-card-glow" />
+                  <div className="id-card-inner relative">
+                    <div className="id-card-header">
+                      <div className="id-card-logo">CI</div>
+                      <div className="id-card-title">CAMPUS · ID</div>
+                      <div className="ml-auto rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[8px] font-bold tracking-wider text-emerald-300">
+                        ACTIVE
+                      </div>
+                    </div>
+
+                    <div className="id-card-avatar">
+                      <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                      </svg>
+                    </div>
+                    <div className="id-card-name">Adaeze Okonkwo</div>
+                    <div className="id-card-dept">Computer Science · 300L</div>
+
+                    <div className="mt-3 flex items-center justify-between rounded-md border border-white/5 bg-black/20 px-2.5 py-2">
+                      <div>
+                        <div className="text-[8px] uppercase tracking-wider text-slate-500">Student ID</div>
+                        <div className="text-[11px] font-mono font-semibold text-slate-200">CIU/24/CSC/0142</div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-[2px]">
+                        {[...Array(9)].map((_, i) => (
+                          <div
+                            key={i}
+                            className={`h-1.5 w-1.5 rounded-[1px] ${
+                              [0, 2, 4, 5, 7, 8].includes(i) ? "bg-slate-300" : "bg-transparent"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="id-card-barcode">
+                      {[...Array(20)].map((_, i) => (
+                        <div key={i} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stat floating cards */}
+              <div className="absolute -left-2 bottom-8 hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl sm:block">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
+                    <svg className="h-4 w-4 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Attendance recorded</div>
+                    <div className="text-sm font-semibold text-white">MTH301 · 09:14 AM</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute -right-2 top-12 hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl sm:block">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20">
+                    <span className="text-amber-300 font-bold">₦</span>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Wallet balance</div>
+                    <div className="text-sm font-semibold text-white">₦ 24,500.00</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Features Section */}
-        <section id="features" className="py-24 sm:py-32">
-          <div className="mx-auto max-w-7xl">
-            <div className="text-center scroll-reveal">
-              <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                Everything you need in one place
-              </h2>
-              <p className="mt-4 text-lg text-slate-300">
-                Streamline your campus experience with our comprehensive digital ID system
-              </p>
-            </div>
-            
-            <div className="mt-20 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Feature 1 */}
-              <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 scroll-reveal">
-                <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mb-6 icon-hover">
-                  <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-3">Secure Access</h3>
-                <p className="text-slate-300">
-                  Advanced encryption and biometric authentication ensure your digital ID is secure and tamper-proof.
-                </p>
+      {/* Trust strip */}
+      <section className="relative border-y border-white/5 bg-white/[0.015] py-10">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <p className="mb-7 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            Built on a modern, audited stack
+          </p>
+          <div className="grid grid-cols-2 items-center gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              "Next.js 16",
+              "MongoDB Atlas",
+              "Bun · Hono",
+              "Paystack",
+              "JWT + Bcrypt",
+              "Vercel · VPS",
+            ].map((label) => (
+              <div
+                key={label}
+                className="text-center font-display text-base font-medium tracking-tight text-slate-400/80 transition hover:text-slate-200"
+              >
+                {label}
               </div>
-
-              {/* Feature 2 */}
-              <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 scroll-reveal">
-                <div className="h-12 w-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mb-6 icon-hover">
-                  <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-3">Campus Payments</h3>
-                <p className="text-slate-300">
-                  Pay for meals, books, and services across campus with contactless payments and real-time balance tracking.
-                </p>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 scroll-reveal">
-                <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mb-6 icon-hover">
-                  <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-3">Mobile Ready</h3>
-                <p className="text-slate-300">
-                  Access your digital ID from any device with our responsive web app and mobile-optimized interface.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Stats Section */}
-        <section className="py-24 sm:py-32">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="text-center scroll-reveal">
-              <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                Trusted by students nationwide
-              </h2>
+      {/* Stats — realistic and product-focused */}
+      <section className="relative px-6 py-24 lg:px-8">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-4">
+          {[
+            { num: "9", suffix: "", label: "Integrated modules", sub: "Auth, QR, Wallet, LMS…" },
+            { num: "3", suffix: "", label: "Role tiers", sub: "Student · Lecturer · Admin" },
+            { num: "<5", suffix: "min", label: "To onboard a school", sub: "From signup to dashboard" },
+            { num: "100", suffix: "%", label: "Tenant data isolation", sub: "Per-institution security" },
+          ].map((s) => (
+            <div key={s.label} className="scroll-reveal text-center sm:text-left">
+              <div className="flex items-baseline justify-center gap-1 sm:justify-start">
+                <span className="font-display text-5xl font-semibold tracking-tight text-white">{s.num}</span>
+                <span className="text-2xl font-medium text-amber-400">{s.suffix}</span>
+              </div>
+              <div className="mt-2 text-sm font-medium text-slate-200">{s.label}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{s.sub}</div>
             </div>
-            <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="text-center scroll-reveal">
-                <div className="stat-number text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">500K+</div>
-                <div className="mt-2 text-slate-300">Active Students</div>
-              </div>
-              <div className="text-center scroll-reveal">
-                <div className="stat-number text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">200+</div>
-                <div className="mt-2 text-slate-300">Partner Universities</div>
-              </div>
-              <div className="text-center scroll-reveal">
-                <div className="stat-number text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">99.9%</div>
-                <div className="mt-2 text-slate-300">Uptime</div>
-              </div>
-              <div className="text-center scroll-reveal">
-                <div className="stat-number text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">24/7</div>
-                <div className="mt-2 text-slate-300">Support</div>
-              </div>
-            </div>
-          </div>
-        </section>
+          ))}
+        </div>
+      </section>
 
-        {/* Learn More Section */}
-        <section id="learn-more" className="py-24 sm:py-32 bg-slate-800/30 backdrop-blur-sm">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="text-center scroll-reveal">
-              <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                Learn More About Campus ID
-              </h2>
-              <p className="mt-4 text-lg text-slate-300 max-w-3xl mx-auto">
-                Discover how our digital campus identity system revolutionizes student life with cutting-edge technology, 
-                enhanced security, and seamless integration across your entire campus ecosystem.
-              </p>
-            </div>
-
-            {/* How It Works */}
-            <div className="mt-20">
-              <div className="text-center scroll-reveal">
-                <h3 className="text-2xl font-bold text-white mb-12">How Campus ID Works</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="text-center scroll-reveal">
-                  <div className="mx-auto h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mb-6 icon-hover">
-                    <span className="text-white font-bold text-xl">1</span>
-                  </div>
-                  <h4 className="text-xl font-semibold text-white mb-3">Sign Up & Verify</h4>
-                  <p className="text-slate-300">
-                    Create your account with your student credentials and verify your identity through our secure OTP system.
-                  </p>
-                </div>
-                <div className="text-center scroll-reveal">
-                  <div className="mx-auto h-16 w-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center mb-6 icon-hover">
-                    <span className="text-white font-bold text-xl">2</span>
-                  </div>
-                  <h4 className="text-xl font-semibold text-white mb-3">Get Your Digital ID</h4>
-                  <p className="text-slate-300">
-                    Receive your unique QR code and barcode that serves as your digital campus identity across all services.
-                  </p>
-                </div>
-                <div className="text-center scroll-reveal">
-                  <div className="mx-auto h-16 w-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center mb-6 icon-hover">
-                    <span className="text-white font-bold text-xl">3</span>
-                  </div>
-                  <h4 className="text-xl font-semibold text-white mb-3">Access Everything</h4>
-                  <p className="text-slate-300">
-                    Use your digital ID for building access, payments, library services, and all campus facilities seamlessly.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Key Benefits */}
-            <div className="mt-24">
-              <div className="text-center scroll-reveal">
-                <h3 className="text-2xl font-bold text-white mb-12">Why Choose Digital Campus ID?</h3>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div className="scroll-reveal">
-                  <div className="space-y-8">
-                    <div className="flex items-start space-x-4">
-                      <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-semibold text-white">Enhanced Security</h4>
-                        <p className="text-slate-300">Advanced encryption, biometric authentication, and real-time fraud detection protect your identity.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-4">
-                      <div className="h-8 w-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-semibold text-white">Contactless Convenience</h4>
-                        <p className="text-slate-300">No more physical cards to lose or replace. Access everything with your smartphone.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-4">
-                      <div className="h-8 w-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-semibold text-white">Real-time Updates</h4>
-                        <p className="text-slate-300">Instant balance updates, transaction history, and campus notifications at your fingertips.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-4">
-                      <div className="h-8 w-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-                        <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-semibold text-white">Comprehensive Dashboard</h4>
-                        <p className="text-slate-300">Track attendance, manage finances, view grades, and access all campus services from one place.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="scroll-reveal">
-                  <div className="bg-gradient-to-br from-slate-800/50 to-slate-700/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-600/50">
-                    <div className="text-center">
-                      <div className="mx-auto h-24 w-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 icon-hover">
-                        <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-                        </svg>
-                      </div>
-                      <h4 className="text-xl font-bold text-white mb-4">Your Digital Campus Life</h4>
-                      <p className="text-slate-300 mb-6">
-                        Experience the future of campus identity with our comprehensive digital solution.
-                      </p>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="bg-slate-700/50 p-3 rounded-lg">
-                          <div className="font-semibold text-blue-400">₦50,000+</div>
-                          <div className="text-slate-300">Avg. Wallet Balance</div>
-                        </div>
-                        <div className="bg-slate-700/50 p-3 rounded-lg">
-                          <div className="font-semibold text-green-400">98%</div>
-                          <div className="text-slate-300">Attendance Rate</div>
-                        </div>
-                        <div className="bg-slate-700/50 p-3 rounded-lg">
-                          <div className="font-semibold text-purple-400">15+</div>
-                          <div className="text-slate-300">Campus Services</div>
-                        </div>
-                        <div className="bg-slate-700/50 p-3 rounded-lg">
-                          <div className="font-semibold text-orange-400">24/7</div>
-                          <div className="text-slate-300">Access</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Security Features */}
-            <div className="mt-24">
-              <div className="text-center scroll-reveal">
-                <h3 className="text-2xl font-bold text-white mb-4">Bank-Level Security</h3>
-                <p className="text-lg text-slate-300 max-w-2xl mx-auto mb-12">
-                  Your digital identity is protected by the same security standards used by financial institutions.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 text-center scroll-reveal">
-                  <div className="h-12 w-12 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center mx-auto mb-4 icon-hover">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                    </svg>
-                  </div>
-                  <h4 className="font-semibold text-white mb-2">256-bit Encryption</h4>
-                  <p className="text-slate-300 text-sm">Military-grade encryption protects all data transmission</p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 text-center scroll-reveal">
-                  <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4 icon-hover">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                    </svg>
-                  </div>
-                  <h4 className="font-semibold text-white mb-2">Biometric Auth</h4>
-                  <p className="text-slate-300 text-sm">Fingerprint and facial recognition for secure access</p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 text-center scroll-reveal">
-                  <div className="h-12 w-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center mx-auto mb-4 icon-hover">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                    </svg>
-                  </div>
-                  <h4 className="font-semibold text-white mb-2">Fraud Detection</h4>
-                  <p className="text-slate-300 text-sm">AI-powered monitoring prevents unauthorized access</p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 text-center scroll-reveal">
-                  <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4 icon-hover">
-                    <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.623 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                    </svg>
-                  </div>
-                  <h4 className="font-semibold text-white mb-2">Compliance</h4>
-                  <p className="text-slate-300 text-sm">GDPR and FERPA compliant data protection</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Student Testimonials */}
-            <div className="mt-24">
-              <div className="text-center scroll-reveal">
-                <h3 className="text-2xl font-bold text-white mb-12">What Students Say</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 scroll-reveal">
-                  <div className="flex items-center mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-white font-semibold text-sm">AO</span>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">Adebayo Olumide</div>
-                      <div className="text-slate-400 text-sm">Computer Science, UI</div>
-                    </div>
-                  </div>
-                  <p className="text-slate-300 italic">
-                    "Campus ID has made my university life so much easier. No more worrying about losing my physical ID card!"
-                  </p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 scroll-reveal">
-                  <div className="flex items-center mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-white font-semibold text-sm">FE</span>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">Fatima Eze</div>
-                      <div className="text-slate-400 text-sm">Medicine, UNILAG</div>
-                    </div>
-                  </div>
-                  <p className="text-slate-300 italic">
-                    "The wallet feature is amazing! I can track all my campus expenses and never run out of funds unexpectedly."
-                  </p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 scroll-reveal">
-                  <div className="flex items-center mb-4">
-                    <div className="h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-white font-semibold text-sm">CO</span>
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">Chidi Okafor</div>
-                      <div className="text-slate-400 text-sm">Engineering, OAU</div>
-                    </div>
-                  </div>
-                  <p className="text-slate-300 italic">
-                    "The attendance tracking and CGPA calculator have helped me stay on top of my academic performance."
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* FAQ Section */}
-            <div className="mt-24">
-              <div className="text-center scroll-reveal">
-                <h3 className="text-2xl font-bold text-white mb-12">Frequently Asked Questions</h3>
-              </div>
-              <div className="max-w-4xl mx-auto space-y-6">
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 scroll-reveal">
-                  <h4 className="font-semibold text-white mb-3">Is my personal information secure?</h4>
-                  <p className="text-slate-300">
-                    Absolutely. We use bank-level encryption and comply with international data protection standards. 
-                    Your information is never shared with third parties without your explicit consent.
-                  </p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 scroll-reveal">
-                  <h4 className="font-semibold text-white mb-3">What if I lose my phone?</h4>
-                  <p className="text-slate-300">
-                    You can immediately suspend your digital ID from any device by logging into your account. 
-                    We also offer temporary access codes and can help you restore access to a new device.
-                  </p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 scroll-reveal">
-                  <h4 className="font-semibold text-white mb-3">How do I add money to my campus wallet?</h4>
-                  <p className="text-slate-300">
-                    You can fund your wallet through bank transfers, debit cards, or mobile money platforms. 
-                    All transactions are instant and secure with real-time balance updates.
-                  </p>
-                </div>
-                <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-xl border border-slate-700/50 scroll-reveal">
-                  <h4 className="font-semibold text-white mb-3">Can I use Campus ID at multiple universities?</h4>
-                  <p className="text-slate-300">
-                    Yes! If you're enrolled at multiple institutions or visiting partner universities, 
-                    your Campus ID works across our entire network of partner schools.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Final CTA */}
-            <div className="mt-24 text-center scroll-reveal">
-              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-sm p-12 rounded-2xl border border-slate-600/50">
-                <h3 className="text-2xl font-bold text-white mb-4">Ready to Get Started?</h3>
-                <p className="text-slate-300 mb-8 max-w-2xl mx-auto">
-                  Join the digital revolution and experience the future of campus life today. 
-                  Setup takes less than 5 minutes and you'll have instant access to all campus services.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/signup">
-                    <button className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg text-lg font-semibold">
-                      Create Your Digital ID
-                    </button>
-                  </Link>
-                  <button className="btn-secondary text-white border border-slate-600 px-8 py-3 rounded-lg text-lg font-semibold hover:bg-slate-700/50">
-                    Watch Demo Video
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-24 sm:py-32">
-          <div className="mx-auto max-w-7xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl scroll-reveal">
-              Ready to modernize your campus experience?
+      {/* Features */}
+      <section id="features" className="relative px-6 py-24 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="scroll-reveal mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">The platform</p>
+            <h2 className="mt-4 font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+              Every campus workflow,
+              <br />
+              under one signed-in identity.
             </h2>
-            <p className="mt-6 text-lg leading-8 text-slate-300 max-w-2xl mx-auto scroll-reveal">
-              Join thousands of students who have already made the switch to digital campus IDs.
+            <p className="mt-5 text-base text-slate-400">
+              Nine integrated modules — built around a single multi-tenant user record. No more disconnected
+              spreadsheets, paper forms, or vendor sprawl.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6 scroll-reveal">
-              <Link href="/signup">
-                <button className="btn-primary bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg text-lg font-semibold">
-                  Create Account
-                </button>
+          </div>
+
+          <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {[
+              {
+                title: "Digital Campus ID",
+                desc: "Replace plastic cards with a signed JWT-backed QR code that lives on every student's phone.",
+                accent: "from-blue-500 to-indigo-500",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875A.875.875 0 014.625 4h14.75a.875.875 0 01.875.875v14.25a.875.875 0 01-.875.875H4.625a.875.875 0 01-.875-.875V4.875zM8.25 8.25h2.25v2.25H8.25V8.25zm5.25 0h2.25v2.25h-2.25V8.25zM8.25 13.5h2.25v2.25H8.25V13.5zm5.25 0h2.25v2.25h-2.25V13.5z" />
+                ),
+                tag: "QR · NFC-ready",
+              },
+              {
+                title: "QR Attendance",
+                desc: "Lecturers scan students at the start of class. Attendance is stored, indexed and queryable by date or course.",
+                accent: "from-emerald-500 to-teal-500",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m13.5 4.5L16.5 3M3 16.5L7.5 21m13.5-4.5L16.5 21M7.5 12h9" />
+                ),
+                tag: "Real-time",
+              },
+              {
+                title: "Smart Wallet",
+                desc: "Naira wallet with Paystack-powered top-ups for tuition, meals and campus services. Indexed transaction history.",
+                accent: "from-amber-500 to-orange-500",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                ),
+                tag: "Paystack",
+              },
+              {
+                title: "Class Schedules",
+                desc: "Lecturers publish timetables. Students see their week live with polling updates &mdash; cancel, restore or announce changes in seconds.",
+                accent: "from-purple-500 to-pink-500",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                ),
+                tag: "Live updates",
+              },
+              {
+                title: "Coursework &amp; Quizzes",
+                desc: "Course materials, assignments with deadline reminders, online quizzes with timer, tab-switch tracking and plagiarism detection.",
+                accent: "from-rose-500 to-red-500",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                ),
+                tag: "Anti-cheat",
+              },
+              {
+                title: "Multi-tenant Admin",
+                desc: "One deployment, many institutions. Each university gets isolated data, its own admins, and a unique institution code.",
+                accent: "from-cyan-500 to-blue-500",
+                icon: (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+                ),
+                tag: "SaaS-native",
+              },
+            ].map((f) => (
+              <article
+                key={f.title}
+                className="scroll-reveal group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-7 backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.06]"
+              >
+                <div
+                  aria-hidden
+                  className={`absolute -inset-px -z-10 rounded-2xl bg-gradient-to-br ${f.accent} opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-20`}
+                />
+
+                <div className="flex items-start justify-between">
+                  <div
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${f.accent} shadow-lg`}
+                  >
+                    <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
+                      {f.icon}
+                    </svg>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    {f.tag}
+                  </span>
+                </div>
+
+                <h3 className="mt-6 font-display text-xl font-semibold text-white" dangerouslySetInnerHTML={{ __html: f.title }} />
+                <p
+                  className="mt-3 text-sm leading-relaxed text-slate-400"
+                  dangerouslySetInnerHTML={{ __html: f.desc }}
+                />
+
+                <div className="mt-6 flex items-center gap-2 text-xs font-medium text-slate-500 transition group-hover:text-amber-300">
+                  Learn more
+                  <svg className="h-3 w-3 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Roles */}
+      <section id="roles" className="relative px-6 py-28 lg:px-8">
+        <div className="absolute inset-x-0 top-0 mx-auto h-px max-w-5xl bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+
+        <div className="mx-auto max-w-7xl">
+          <div className="scroll-reveal mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">Built for every campus role</p>
+            <h2 className="mt-4 font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+              One platform.
+              <br />
+              <span className="italic text-amber-300/90">Three audiences.</span>
+            </h2>
+          </div>
+
+          <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {[
+              {
+                role: "Students",
+                tagline: "Your campus in your pocket",
+                color: "from-blue-500/20 to-indigo-500/5",
+                border: "border-blue-500/20",
+                items: [
+                  "Digital ID with permanent QR code",
+                  "Live class schedule with reminders",
+                  "Naira wallet · fees & meal payments",
+                  "Submit assignments, take quizzes",
+                  "Attendance history & CGPA tracking",
+                ],
+              },
+              {
+                role: "Lecturers",
+                tagline: "Teach, grade, track — in one app",
+                color: "from-amber-500/20 to-orange-500/5",
+                border: "border-amber-500/30",
+                featured: true,
+                items: [
+                  "Scan QR to log student attendance",
+                  "Publish & cancel classes on the fly",
+                  "Upload materials, set assignments",
+                  "Create timed online quizzes",
+                  "Plagiarism check on submissions",
+                ],
+              },
+              {
+                role: "Administrators",
+                tagline: "Run your institution like a product",
+                color: "from-emerald-500/20 to-teal-500/5",
+                border: "border-emerald-500/20",
+                items: [
+                  "Onboard students & lecturers in bulk",
+                  "Auto-generated IDs (STU, FAC, EMP)",
+                  "Department & course management",
+                  "Real-time dashboard statistics",
+                  "Institution-wide announcements",
+                ],
+              },
+            ].map((r) => (
+              <div
+                key={r.role}
+                className={`scroll-reveal group relative overflow-hidden rounded-3xl border ${
+                  r.border
+                } bg-gradient-to-b ${r.color} p-8 backdrop-blur-sm transition-all hover:-translate-y-1 ${
+                  r.featured ? "lg:scale-[1.03] lg:shadow-[0_20px_60px_-20px_rgba(245,158,11,0.4)]" : ""
+                }`}
+              >
+                {r.featured && (
+                  <div className="absolute right-6 top-6 rounded-full bg-amber-400/90 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-950">
+                    Faculty favorite
+                  </div>
+                )}
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  For {r.role.toLowerCase()}
+                </div>
+                <h3 className="font-display text-3xl font-semibold tracking-tight text-white">{r.role}</h3>
+                <p className="mt-1 text-sm italic text-slate-300/80">{r.tagline}</p>
+
+                <ul className="mt-7 space-y-3.5">
+                  {r.items.map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-[14px] text-slate-200">
+                      <span className="mt-1.5 inline-flex h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="relative px-6 py-28 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="scroll-reveal mx-auto max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">Onboarding</p>
+            <h2 className="mt-4 font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+              From signup to scan
+              <br />
+              <span className="italic text-amber-300/90">in under five minutes.</span>
+            </h2>
+          </div>
+
+          <div className="mt-20 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {[
+              {
+                step: "01",
+                title: "Register your institution",
+                desc: "Receive a unique institution code and the first admin account. No procurement cycle required.",
+              },
+              {
+                step: "02",
+                title: "Provision your community",
+                desc: "Admins create students and lecturers. Each one gets an activation email with a magic link.",
+              },
+              {
+                step: "03",
+                title: "Go live on campus",
+                desc: "Users activate accounts, claim their digital ID and start scanning, paying and learning.",
+              },
+            ].map((s, i) => (
+              <div
+                key={s.step}
+                className="scroll-reveal relative rounded-2xl border border-white/10 bg-white/[0.02] p-8 backdrop-blur-sm"
+              >
+                <div className="flex items-baseline justify-between">
+                  <span className="font-display text-5xl font-semibold tracking-tight text-amber-400/90">
+                    {s.step}
+                  </span>
+                  {i < 2 && (
+                    <svg
+                      className="hidden h-5 w-12 text-amber-400/30 lg:block"
+                      viewBox="0 0 60 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M0 10h54m-6-6l6 6-6 6" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="mt-6 font-display text-xl font-semibold text-white">{s.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-400">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Security */}
+      <section id="security" className="relative px-6 py-28 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-12">
+            <div className="scroll-reveal lg:col-span-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">Trust &amp; security</p>
+              <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl">
+                Built like a bank.
+                <br />
+                <span className="italic text-slate-400">Audited like one too.</span>
+              </h2>
+              <p className="mt-6 max-w-md text-[15px] leading-relaxed text-slate-400">
+                Every endpoint is protected by signed JWTs. Passwords are hashed with bcrypt at 12 rounds.
+                Tenants are isolated at the database layer. Nothing leaves your institution&apos;s namespace.
+              </p>
+
+              <Link
+                href="/register-institution"
+                className="mt-9 inline-flex items-center gap-2 text-sm font-semibold text-amber-300 transition hover:text-amber-200"
+              >
+                See the architecture
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
               </Link>
-              <button className="btn-secondary text-white hover:text-blue-400 text-lg font-semibold">
-                Contact Sales →
-              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 lg:col-span-7">
+              {[
+                {
+                  title: "JWT Authentication",
+                  desc: "4-hour access tokens, 7-day refresh tokens, signed with rotated secrets.",
+                  icon: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z",
+                },
+                {
+                  title: "Bcrypt Password Hashing",
+                  desc: "12-round salting. Last 5 passwords blocked from reuse on every change.",
+                  icon: "M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z",
+                },
+                {
+                  title: "Tenant Isolation",
+                  desc: "Every record is institution-scoped. Cross-tenant access is structurally impossible.",
+                  icon: "M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21",
+                },
+                {
+                  title: "Rate Limiting",
+                  desc: "5 login attempts per 15 minutes. OTPs with 10-minute TTL auto-expire in MongoDB.",
+                  icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+                },
+              ].map((s) => (
+                <div
+                  key={s.title}
+                  className="scroll-reveal rounded-2xl border border-white/10 bg-white/[0.025] p-6 backdrop-blur-sm transition hover:border-amber-400/30 hover:bg-white/[0.04]"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-400/10">
+                    <svg
+                      className="h-5 w-5 text-amber-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth="1.8"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d={s.icon} />
+                    </svg>
+                  </div>
+                  <h4 className="mt-4 font-display text-base font-semibold text-white">{s.title}</h4>
+                  <p className="mt-2 text-[13px] leading-relaxed text-slate-400">{s.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="relative px-6 py-28 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="scroll-reveal relative overflow-hidden rounded-[2rem] border border-amber-400/20 bg-gradient-to-br from-[#10182e] via-[#0d1428] to-[#1a1305] p-12 sm:p-16 lg:p-20">
+            <div
+              aria-hidden
+              className="absolute -top-32 -right-32 h-[420px] w-[420px] rounded-full bg-amber-400/15 blur-[120px]"
+            />
+            <div
+              aria-hidden
+              className="absolute -bottom-32 -left-20 h-[360px] w-[360px] rounded-full bg-blue-500/15 blur-[120px]"
+            />
+
+            <div className="relative mx-auto max-w-3xl text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-400">
+                The new academic standard
+              </p>
+              <h2 className="mt-5 font-display text-4xl font-semibold leading-tight tracking-tight text-white sm:text-6xl">
+                Bring your campus
+                <br />
+                <span className="bg-gradient-to-br from-amber-200 via-amber-300 to-amber-500 bg-clip-text italic text-transparent">
+                  into the 21st century.
+                </span>
+              </h2>
+              <p className="mx-auto mt-7 max-w-xl text-[16px] leading-relaxed text-slate-300">
+                Pilot Campus ID with your institution this semester. We&apos;ll have your admin
+                signed in and your first student onboarded today.
+              </p>
+
+              <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                <Link
+                  href="/register-institution"
+                  className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 px-7 py-3.5 text-[15px] font-semibold text-[#1a1305] shadow-[0_10px_40px_-10px_rgba(245,158,11,0.7)] transition-all hover:shadow-[0_14px_50px_-10px_rgba(245,158,11,0.9)]"
+                >
+                  Register your institution
+                  <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 5l7 7-7 7" />
+                  </svg>
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-7 py-3.5 text-[15px] font-medium text-white backdrop-blur transition hover:bg-white/10"
+                >
+                  Sign in
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900/80 backdrop-blur-sm text-white py-12 border-t border-slate-700/50">
+      <footer className="relative border-t border-white/5 bg-[#050a18] py-16">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          {/* Logo and Description - Full width on mobile */}
-          <div className="scroll-reveal mb-8 md:mb-12">
-            <div className="flex items-center space-x-2 mb-4 justify-center md:justify-start">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">ID</span>
-              </div>
-              <span className="text-xl font-bold">Campus ID</span>
+          <div className="grid grid-cols-2 gap-10 sm:grid-cols-4 lg:grid-cols-5">
+            <div className="col-span-2 lg:col-span-2">
+              <Link href="/" className="flex items-center gap-2.5">
+                <div className="relative h-9 w-9">
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-amber-500" />
+                  <div className="absolute inset-[2px] flex items-center justify-center rounded-[10px] bg-[#050a18]">
+                    <span className="bg-gradient-to-br from-amber-300 to-amber-500 bg-clip-text text-sm font-black tracking-tight text-transparent">
+                      CI
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-col leading-none">
+                  <span className="font-display text-lg font-semibold tracking-tight text-white">Campus ID</span>
+                  <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Univ&middot;OS</span>
+                </div>
+              </Link>
+              <p className="mt-5 max-w-sm text-sm leading-relaxed text-slate-400">
+                The operating system for the modern university. Identity, attendance, payments and learning &mdash;
+                under one roof.
+              </p>
+              <p className="mt-4 text-xs text-slate-600">
+                Made with care in Lagos, Nigeria &middot; Built for the African campus.
+              </p>
             </div>
-            <p className="text-slate-400 text-center md:text-left max-w-md mx-auto md:mx-0">
-              The future of campus identity management. Secure, convenient, and modern student ID system for the digital age.
+
+            <div>
+              <h4 className="font-display text-sm font-semibold text-white">Platform</h4>
+              <ul className="mt-4 space-y-3 text-sm text-slate-400">
+                <li><a href="#features" className="hover:text-amber-300">Features</a></li>
+                <li><a href="#roles" className="hover:text-amber-300">For Universities</a></li>
+                <li><a href="#security" className="hover:text-amber-300">Security</a></li>
+                <li><Link href="/news" className="hover:text-amber-300">News</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-display text-sm font-semibold text-white">Access</h4>
+              <ul className="mt-4 space-y-3 text-sm text-slate-400">
+                <li><Link href="/login" className="hover:text-amber-300">Sign in</Link></li>
+                <li><Link href="/register-institution" className="hover:text-amber-300">Register institution</Link></li>
+                <li><Link href="/forgot-password" className="hover:text-amber-300">Forgot password</Link></li>
+                <li><Link href="/activate-account" className="hover:text-amber-300">Activate account</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-display text-sm font-semibold text-white">Legal</h4>
+              <ul className="mt-4 space-y-3 text-sm text-slate-400">
+                <li><a href="#" className="hover:text-amber-300">Privacy</a></li>
+                <li><a href="#" className="hover:text-amber-300">Terms</a></li>
+                <li><a href="#" className="hover:text-amber-300">Data policy</a></li>
+                <li><a href="mailto:hello@smartunivid.xyz" className="hover:text-amber-300">Contact</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-14 flex flex-col items-start gap-4 border-t border-white/5 pt-8 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-slate-500">
+              &copy; {new Date().getFullYear()} Campus ID &middot; smartunivid.xyz. All rights reserved.
             </p>
-          </div>
-
-          {/* Footer Links - Better mobile layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-            <div className="scroll-reveal text-center sm:text-left">
-              <h3 className="font-semibold mb-4 text-white">Product</h3>
-              <ul className="space-y-3 text-slate-400">
-                <li><a href="#features" className="hover:text-white transition-colors block">Features</a></li>
-                <li><a href="#learn-more" className="hover:text-white transition-colors block">Security</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block">Pricing</a></li>
-                <li><a href="/news" className="hover:text-white transition-colors block">News & Updates</a></li>
-              </ul>
-            </div>
-            <div className="scroll-reveal text-center sm:text-left">
-              <h3 className="font-semibold mb-4 text-white">Support</h3>
-              <ul className="space-y-3 text-slate-400">
-                <li><a href="#" className="hover:text-white transition-colors block">Help Center</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block">Contact Us</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block">System Status</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block">Documentation</a></li>
-              </ul>
-            </div>
-            <div className="scroll-reveal text-center sm:text-left sm:col-span-2 lg:col-span-1">
-              <h3 className="font-semibold mb-4 text-white">Company</h3>
-              <ul className="space-y-3 text-slate-400">
-                <li><a href="#" className="hover:text-white transition-colors block">About Us</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block">Careers</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors block">Terms of Service</a></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Social Links - Mobile friendly */}
-          <div className="scroll-reveal mb-8">
-            <div className="flex justify-center space-x-6">
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <span className="sr-only">Twitter</span>
-                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-5 text-slate-500">
+              <a href="#" aria-label="Twitter" className="transition hover:text-amber-300">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
                 </svg>
               </a>
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <span className="sr-only">Instagram</span>
-                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" d="M12.017 0C8.396 0 7.929.013 6.71.072 5.493.131 4.73.333 4.058.63a5.888 5.888 0 00-2.126 1.384 5.888 5.888 0 00-1.384 2.126C.333 4.73.131 5.493.072 6.71.013 7.929 0 8.396 0 12.017s.013 4.088.072 5.307c.059 1.217.261 1.98.558 2.652.307.788.717 1.459 1.384 2.126.667.667 1.338 1.077 2.126 1.384.672.297 1.435.499 2.652.558 1.219.059 1.686.072 5.307.072s4.088-.013 5.307-.072c1.217-.059 1.98-.261 2.652-.558a5.888 5.888 0 002.126-1.384 5.888 5.888 0 001.384-2.126c.297-.672.499-1.435.558-2.652.059-1.219.072-1.686.072-5.307s-.013-4.088-.072-5.307c-.059-1.217-.261-1.98-.558-2.652a5.888 5.888 0 00-1.384-2.126A5.888 5.888 0 0016.965.63C16.293.333 15.53.131 14.313.072 13.094.013 12.627 0 12.017 0zm0 2.162c3.204 0 3.584.012 4.85.07 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.06 1.265.072 1.646.072 4.85s-.012 3.584-.072 4.85c-.053 1.17-.249 1.805-.413 2.227-.218.562-.477.96-.896 1.382-.419.419-.819.679-1.381.896-.422.164-1.057.36-2.227.413-1.266.06-1.646.072-4.85.072s-3.584-.012-4.85-.072c-1.17-.053-1.805-.249-2.227-.413a3.81 3.81 0 01-1.382-.896 3.81 3.81 0 01-.896-1.382c-.164-.422-.36-1.057-.413-2.227-.06-1.265-.072-1.646-.072-4.85s.012-3.584.072-4.85c.053-1.17.249-1.805.413-2.227.218-.562.477-.96.896-1.382.419-.419.819-.679 1.381-.896.422-.164 1.057-.36 2.227-.413 1.266-.06 1.646-.072 4.85-.072z" clipRule="evenodd" />
-                  <path fillRule="evenodd" d="M12.017 15.33a3.312 3.312 0 100-6.624 3.312 3.312 0 000 6.624zm0-8.414a5.102 5.102 0 110 10.204 5.102 5.102 0 010-10.204zm6.506-1.61a1.193 1.193 0 11-2.386 0 1.193 1.193 0 012.386 0z" clipRule="evenodd" />
+              <a href="#" aria-label="LinkedIn" className="transition hover:text-amber-300">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19 0H5a5 5 0 00-5 5v14a5 5 0 005 5h14a5 5 0 005-5V5a5 5 0 00-5-5zM8 19H5V8h3v11zM6.5 6.732c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zM20 19h-3v-5.604c0-3.368-4-3.113-4 0V19h-3V8h3v1.765c1.396-2.586 7-2.777 7 2.476V19z" />
                 </svg>
               </a>
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <span className="sr-only">LinkedIn</span>
-                <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" d="M19 0H5a5 5 0 00-5 5v14a5 5 0 005 5h14a5 5 0 005-5V5a5 5 0 00-5-5zM8 19H5V8h3v11zM6.5 6.732c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zM20 19h-3v-5.604c0-3.368-4-3.113-4 0V19h-3V8h3v1.765c1.396-2.586 7-2.777 7 2.476V19z" clipRule="evenodd" />
+              <a href="#" aria-label="GitHub" className="transition hover:text-amber-300">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57v-2.04c-3.33.72-4.035-1.605-4.035-1.605-.54-1.395-1.335-1.755-1.335-1.755-1.08-.735.09-.72.09-.72 1.2.09 1.83 1.23 1.83 1.23 1.065 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.655-.3-5.445-1.32-5.445-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.545 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.92 1.23 3.225 0 4.62-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22v3.285c0 .315.225.69.825.57C20.565 21.795 24 17.31 24 12c0-6.63-5.37-12-12-12z" />
                 </svg>
               </a>
-            </div>
-          </div>
-
-          {/* Copyright - Clean and centered */}
-          <div className="border-t border-slate-800 pt-8 scroll-reveal">
-            <div className="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-              <p className="text-slate-400 text-sm text-center sm:text-left">
-                &copy; 2024 Campus ID. All rights reserved.
-              </p>
-              <div className="flex space-x-6 text-sm text-slate-400">
-                <a href="#" className="hover:text-white transition-colors">Privacy</a>
-                <a href="#" className="hover:text-white transition-colors">Terms</a>
-                <a href="#" className="hover:text-white transition-colors">Cookies</a>
-              </div>
             </div>
           </div>
         </div>

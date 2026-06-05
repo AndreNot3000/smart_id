@@ -132,16 +132,20 @@ export const qrService = {
     location?: string
   ): Promise<{
     message: string;
+    attendanceId: string;
     student: {
       studentId: string;
+      firstName: string;
+      lastName: string;
       name: string;
       department: string;
       year: string;
+      avatar: string | null;
+      email: string;
+      status: string;
     };
-    scannedBy: {
-      name: string;
-      userType: string;
-    };
+    purpose?: string;
+    location?: string;
     scannedAt: string;
   }> => {
     const token = getAuthToken();

@@ -16,40 +16,25 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
     id: string;
     avatar?: string;
   } | null>(null);
-  const [expiresAt, setExpiresAt] = useState<Date | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
-  const [refreshing, setRefreshing] = useState<boolean>(false);
 
   // Storage keys
   const QR_DATA_KEY = 'student_qr_data';
   const QR_USER_INFO_KEY = 'student_qr_user_info';
-  const QR_EXPIRES_AT_KEY = 'student_qr_expires_at';
 
   // Load QR data from storage
   const loadQRFromStorage = useCallback(() => {
     try {
       const storedQRData = sessionStorage.getItem(QR_DATA_KEY);
       const storedUserInfo = sessionStorage.getItem(QR_USER_INFO_KEY);
-      const storedExpiresAt = sessionStorage.getItem(QR_EXPIRES_AT_KEY);
 
-      if (storedQRData && storedUserInfo && storedExpiresAt) {
-        const expirationDate = new Date(storedExpiresAt);
-        
-        // Check if QR code is still valid
-        if (expirationDate.getTime() > Date.now()) {
-          setQrData(storedQRData);
-          setUserInfo(JSON.parse(storedUserInfo));
-          setExpiresAt(expirationDate);
-          
-          const timeLeftSeconds = Math.floor((expirationDate.getTime() - Date.now()) / 1000);
-          setTimeLeft(timeLeftSeconds);
-          
-          return true; // Successfully loaded from storage
-        }
+      if (storedQRData && storedUserInfo) {
+        setQrData(storedQRData);
+        setUserInfo(JSON.parse(storedUserInfo));
+        return true;
       }
-      return false; // No valid stored data
+      return false;
     } catch (err) {
       console.error('Error loading QR from storage:', err);
       return false;
@@ -57,118 +42,54 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
   }, []);
 
   // Save QR data to storage
-  const saveQRToStorage = useCallback((qrData: string, userInfo: any, expiresAt: Date) => {
+  const saveQRToStorage = useCallback((qrData: string, userInfo: any) => {
     try {
       sessionStorage.setItem(QR_DATA_KEY, qrData);
       sessionStorage.setItem(QR_USER_INFO_KEY, JSON.stringify(userInfo));
-      sessionStorage.setItem(QR_EXPIRES_AT_KEY, expiresAt.toISOString());
     } catch (err) {
       console.error('Error saving QR to storage:', err);
     }
   }, []);
 
   // Generate QR code
-  const generateQR = useCallback(async (forceRegenerate = false) => {
+  const generateQR = useCallback(async () => {
     try {
-      // If not forcing regeneration, try to load from storage first
-      if (!forceRegenerate) {
-        const loaded = loadQRFromStorage();
-        if (loaded) {
-          setLoading(false);
-          return;
-        }
+      // Try to load from storage first
+      const loaded = loadQRFromStorage();
+      if (loaded) {
+        setLoading(false);
+        return;
       }
 
-      setRefreshing(true);
       setError('');
       
       const response = await qrService.generateQRCode();
       
       setQrData(response.qrData);
       setUserInfo(response.userInfo);
-      
-      // Calculate expiration time (24 hours from now)
-      const expirationDate = new Date();
-      expirationDate.setHours(expirationDate.getHours() + 24);
-      setExpiresAt(expirationDate);
-      
-      // Calculate time left in seconds
-      const timeLeftSeconds = Math.floor((expirationDate.getTime() - Date.now()) / 1000);
-      setTimeLeft(timeLeftSeconds);
 
-      // Save to storage
-      saveQRToStorage(response.qrData, response.userInfo, expirationDate);
+      // Save to storage (permanent, no expiration)
+      saveQRToStorage(response.qrData, response.userInfo);
       
     } catch (err: any) {
       setError(err.message || 'Failed to generate QR code');
       console.error('QR generation error:', err);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [loadQRFromStorage, saveQRToStorage]);
 
   // Initial QR load/generation (only once on mount)
   useEffect(() => {
-    generateQR(false); // Try to load from storage first
+    generateQR();
   }, [generateQR]);
-
-  // Countdown timer (updates every minute for 24-hour countdown)
-  useEffect(() => {
-    if (timeLeft <= 0 || !expiresAt) return;
-
-    const timer = setInterval(() => {
-      const newTimeLeft = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
-      if (newTimeLeft <= 0) {
-        setTimeLeft(0);
-        clearInterval(timer);
-      } else {
-        setTimeLeft(newTimeLeft);
-      }
-    }, 60000); // Update every minute instead of every second
-
-    return () => clearInterval(timer);
-  }, [expiresAt, timeLeft]);
-
-  // Format time left for 24-hour display
-  const formatTimeLeft = (seconds: number): string => {
-    if (seconds <= 0) return 'Expired';
-    
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    return `${minutes}m`;
-  };
-
-  // Get color based on time left
-  const getTimerColor = (): string => {
-    const hoursLeft = timeLeft / 3600;
-    if (hoursLeft > 12) return 'text-green-400'; // > 12 hours
-    if (hoursLeft > 6) return 'text-yellow-400'; // > 6 hours
-    if (hoursLeft > 1) return 'text-orange-400'; // > 1 hour
-    return 'text-red-400'; // < 1 hour
-  };
-
-  // Format expiration date
-  const formatExpirationDate = (): string => {
-    if (!expiresAt) return '';
-    return expiresAt.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   if (loading) {
     return (
       <div className={`bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 ${className}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-slate-300">Generating your QR code...</p>
+          <p className="text-slate-300">Loading your QR code...</p>
         </div>
       </div>
     );
@@ -183,10 +104,10 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">Error Generating QR Code</h3>
+          <h3 className="text-xl font-semibold text-white mb-2">Error Loading QR Code</h3>
           <p className="text-slate-400 mb-4">{error}</p>
           <button 
-            onClick={() => generateQR(true)} // Force regeneration
+            onClick={() => { setLoading(true); setError(''); generateQR(); }}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
           >
             Retry
@@ -215,7 +136,7 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
 
         {/* QR Code with Avatar Overlay */}
         <div className="relative inline-block mb-6">
-          <div className={`bg-white p-6 rounded-2xl transition-opacity duration-300 ${refreshing ? 'opacity-50' : 'opacity-100'}`}>
+          <div className="bg-white p-6 rounded-2xl">
             {qrData ? (
               <div className="relative">
                 <QRCodeSVG
@@ -250,45 +171,22 @@ export default function StudentQRDisplay({ className = '' }: StudentQRDisplayPro
               </div>
             )}
           </div>
-          
-          {refreshing && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-          )}
         </div>
 
-        {/* Expiration Info */}
+        {/* Permanent Badge */}
         <div className="mb-6">
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <span className="inline-flex items-center px-4 py-2 bg-green-900/30 border border-green-700/50 rounded-full">
+            <svg className="h-4 w-4 text-green-400 mr-2" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
             </svg>
-            <span className={`text-2xl font-bold font-mono ${getTimerColor()}`}>
-              {formatTimeLeft(timeLeft)}
-            </span>
-          </div>
-          <p className="text-slate-400 text-sm">
-            {timeLeft > 0 ? `Valid until ${formatExpirationDate()}` : 'QR code expired'}
-          </p>
+            <span className="text-green-400 text-sm font-medium">Permanent ID - Does not expire</span>
+          </span>
         </div>
-
-        {/* Regenerate Button */}
-        <button
-          onClick={() => generateQR(true)} // Force regeneration
-          disabled={refreshing}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
-        >
-          <svg className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-          </svg>
-          <span>{refreshing ? 'Regenerating...' : 'Regenerate QR Code'}</span>
-        </button>
 
         {/* Info */}
-        <div className="mt-6 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">
+        <div className="p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">
           <p className="text-blue-300 text-sm">
-            <span className="font-semibold">💡 Tip:</span> Your QR code is stored and will persist across sessions. Only regenerate if you need a new code.
+            <span className="font-semibold">💡 Tip:</span> This is your permanent digital ID. It stays the same and never expires.
           </p>
         </div>
       </div>

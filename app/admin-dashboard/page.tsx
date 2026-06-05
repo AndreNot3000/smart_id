@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { DashboardShell, Icon, StatCard, type NavItem } from "@/components/dashboard";
 import QRScannerNew from "@/components/qr/QRScannerNew";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
+import { AdminAttendanceOverview } from "@/components/attendance";
+import { GradeScaleSettings } from "@/components/admin";
+import { AdminReports } from "@/components/reports";
 import { getApiUrl } from "@/lib/config";
 
 // API Response Types
@@ -83,6 +87,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [searchStudentId, setSearchStudentId] = useState<string>('');
   
@@ -103,6 +108,17 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userModalType, setUserModalType] = useState<'student' | 'lecturer'>('student');
+
+  // Course management states
+  const [adminCourses, setAdminCourses] = useState<any[]>([]);
+  const [loadingAdminCourses, setLoadingAdminCourses] = useState(false);
+  const [selectedCourseLevel, setSelectedCourseLevel] = useState('100L');
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<any>(null);
+  const [courseForm, setCourseForm] = useState({ courseCode: '', courseName: '', description: '', credits: 3, department: '', level: '100L', semester: 'First' });
+  const [courseError, setCourseError] = useState('');
+  const [courseSuccess, setCourseSuccess] = useState('');
+  const [assigningCourse, setAssigningCourse] = useState<any>(null);
 
   // Fetch all dashboard data
   useEffect(() => {
@@ -200,16 +216,96 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, [router]);
 
-  const menuItems = [
-    { id: 'overview', name: 'Dashboard Overview', icon: '📊' },
-    { id: 'qr-scanner', name: 'QR Scanner', icon: '📱' },
-    { id: 'student-history', name: 'Student History', icon: '📋' },
-    { id: 'students', name: 'Student Management', icon: '🎓' },
-    { id: 'lecturers', name: 'Lecturer Management', icon: '👨‍🏫' },
-    { id: 'departments', name: 'Departments', icon: '🏢' },
-    { id: 'courses', name: 'Course Management', icon: '📚' },
-    { id: 'reports', name: 'Reports', icon: '📈' },
-    { id: 'settings', name: 'Settings', icon: '⚙️' }
+  // Course management functions
+  const fetchAdminCourses = async () => {
+    setLoadingAdminCourses(true);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const response = await fetch(getApiUrl('/api/course'), {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAdminCourses(data.courses || []);
+      }
+    } catch (error) { console.error('Error fetching courses:', error); }
+    finally { setLoadingAdminCourses(false); }
+  };
+
+  const handleCourseSubmit = async () => {
+    setCourseError('');
+    console.log('Course form values:', JSON.stringify(courseForm));
+    if (!courseForm.courseCode.trim() || !courseForm.courseName.trim() || !courseForm.department.trim() || !courseForm.level) {
+      setCourseError('Please fill in all required fields');
+      return;
+    }
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const url = editingCourse ? getApiUrl(`/api/course/${editingCourse._id}`) : getApiUrl('/api/course');
+      const method = editingCourse ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(courseForm),
+      });
+      const data = await response.json();
+      if (!response.ok) { setCourseError(data.error || 'Failed'); return; }
+      setCourseSuccess(editingCourse ? 'Course updated' : 'Course created');
+      setShowCourseModal(false);
+      setEditingCourse(null);
+      setCourseForm({ courseCode: '', courseName: '', description: '', credits: 3, department: '', level: '100L', semester: 'First' });
+      fetchAdminCourses();
+      setTimeout(() => setCourseSuccess(''), 3000);
+    } catch (error) { setCourseError('Failed to save course'); }
+  };
+
+  const handleDeleteCourse = async (id: string) => {
+    if (!confirm('Delete this course and all its materials?')) return;
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const response = await fetch(getApiUrl(`/api/course/${id}`), {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) { fetchAdminCourses(); setCourseSuccess('Course deleted'); setTimeout(() => setCourseSuccess(''), 3000); }
+    } catch (error) { console.error('Error deleting course:', error); }
+  };
+
+  const toggleLecturerAssignment = async (courseId: string, lecturerId: string, currentIds: string[]) => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const isAssigned = currentIds.includes(lecturerId);
+      const newIds = isAssigned ? currentIds.filter(id => id !== lecturerId) : [...currentIds, lecturerId];
+      const response = await fetch(getApiUrl(`/api/course/${courseId}`), {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lecturerIds: newIds }),
+      });
+      if (response.ok) {
+        fetchAdminCourses();
+        // Update the assigning course state too
+        setAssigningCourse((prev: any) => prev ? { ...prev, lecturerIds: newIds } : null);
+      }
+    } catch (error) { console.error('Error assigning lecturer:', error); }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'courses') fetchAdminCourses();
+  }, [activeSection]);
+
+  const menuItems: NavItem[] = [
+    { id: 'overview', name: 'Overview', icon: 'dashboard' },
+    { id: 'qr-scanner', name: 'QR Scanner', icon: 'scan' },
+    { id: 'student-history', name: 'Student History', icon: 'history' },
+    { id: 'students', name: 'Student Management', icon: 'graduation' },
+    { id: 'lecturers', name: 'Lecturer Management', icon: 'briefcase' },
+    { id: 'departments', name: 'Departments', icon: 'building' },
+    { id: 'courses', name: 'Course Management', icon: 'bookOpen' },
+    { id: 'attendance', name: 'Attendance Management', icon: 'clipboardCheck' },
+    { id: 'reports', name: 'Reports', icon: 'trendingUp' },
+    { id: 'settings', name: 'Settings', icon: 'settings' },
   ];
 
   const quickActions = [
@@ -240,34 +336,28 @@ export default function AdminDashboard() {
     }
   };
 
-  // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center">
+      <div className="app-shell flex items-center justify-center p-4" data-role="admin">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">Loading dashboard...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[var(--accent)] mx-auto mb-4" />
+          <p className="text-[var(--text-secondary)] text-sm">Loading dashboard…</p>
         </div>
       </div>
     );
   }
 
-  // Show error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="h-16 w-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
+      <div className="app-shell flex items-center justify-center p-4" data-role="admin">
+        <div className="section-card max-w-md w-full text-center">
+          <div className="h-12 w-12 rounded-full mx-auto mb-4 flex items-center justify-center"
+               style={{ background: 'rgba(239,68,68,0.12)', color: 'var(--danger)' }}>
+            <Icon name="alert" size={22} />
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">Error Loading Dashboard</h3>
-          <p className="text-slate-400 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
-          >
+          <h3 className="text-[var(--text-primary)] text-lg font-semibold mb-2">Unable to load dashboard</h3>
+          <p className="text-[var(--text-muted)] text-sm mb-5">{error}</p>
+          <button type="button" onClick={() => window.location.reload()} className="btn btn-primary">
             Retry
           </button>
         </div>
@@ -276,16 +366,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* User Creation Modal */}
+    <>
       {showUserModal && (
         <UserCreationModal
           isOpen={showUserModal}
@@ -293,126 +374,41 @@ export default function AdminDashboard() {
           institutionName={adminData.institution}
           userType={userModalType}
           onSuccess={() => {
-            // Refresh data
             window.location.reload();
           }}
         />
       )}
 
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800/95 backdrop-blur-sm border-r border-slate-700/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ID</span>
-            </div>
-            <span className="text-xl font-bold text-white">Campus ID</span>
-          </Link>
-          <button 
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-slate-400 hover:text-white"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Admin Profile */}
-        <div className="p-6 border-b border-slate-700/50">
-          <div className="flex items-center space-x-3">
-            <div className="h-12 w-12 bg-gradient-to-br from-red-500 to-orange-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold">{adminData.avatar}</span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-white font-semibold truncate">{adminData.name}</h3>
-              <p className="text-slate-400 text-sm truncate">{adminData.role}</p>
-              <p className="text-slate-500 text-xs truncate">{adminData.institution}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="p-4 max-h-96 overflow-y-auto">
-          <ul className="space-y-1">
-            {menuItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => {
-                    setActiveSection(item.id);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                    activeSection === item.id
-                      ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                  }`}
-                >
-                  <span className="text-lg">{item.icon}</span>
-                  <span className="text-sm">{item.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* Logout */}
-        <div className="absolute bottom-4 left-4 right-4">
-          <button 
-            onClick={() => {
-              sessionStorage.removeItem('accessToken');
-              sessionStorage.removeItem('refreshToken');
-              sessionStorage.removeItem('user');
-              router.push('/login');
-            }}
-            className="w-full flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors"
-          >
-            <span className="text-lg">🚪</span>
-            <span>Logout</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="lg:ml-64">
-        {/* Header */}
-        <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden text-slate-400 hover:text-white p-1"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                </svg>
-              </button>
-              <h1 className="text-2xl font-bold text-white capitalize">{activeSection.replace('-', ' ')}</h1>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              {dashboardStats && (
-                <>
-                  <div className="text-right">
-                    <p className="text-white font-semibold">{dashboardStats.stats.users.students}</p>
-                    <p className="text-slate-400 text-xs">Students</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-white font-semibold">{dashboardStats.stats.users.lecturers}</p>
-                    <p className="text-slate-400 text-xs">Lecturers</p>
-                  </div>
-                </>
-              )}
-              
-              <div className="h-10 w-10 bg-gradient-to-br from-red-500 to-orange-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">{adminData.avatar}</span>
+      <DashboardShell
+        role="admin"
+        navItems={menuItems}
+        activeSection={activeSection}
+        onSelectSection={setActiveSection}
+        pageTitle={menuItems.find(i => i.id === activeSection)?.name ?? activeSection.replace('-', ' ')}
+        pageSubtitle={adminData.institution}
+        user={{
+          name: adminData.name,
+          subtitle: adminData.role,
+          secondary: adminData.institution,
+          initials: adminData.avatar,
+        }}
+        topbarActions={
+          dashboardStats ? (
+            <div className="hidden lg:flex items-center gap-4 px-3 py-1.5 rounded-lg"
+                 style={{ background: 'var(--surface-1)', border: '1px solid var(--border-default)' }}>
+              <div className="text-right leading-tight">
+                <p className="text-[var(--text-primary)] text-sm font-semibold">{dashboardStats.stats.users.students}</p>
+                <p className="text-[var(--text-muted)] text-[10px] uppercase tracking-wider">Students</p>
+              </div>
+              <div className="h-6 w-px bg-[var(--border-default)]" />
+              <div className="text-right leading-tight">
+                <p className="text-[var(--text-primary)] text-sm font-semibold">{dashboardStats.stats.users.lecturers}</p>
+                <p className="text-[var(--text-muted)] text-[10px] uppercase tracking-wider">Lecturers</p>
               </div>
             </div>
-          </div>
-        </header>
-
-        {/* Content */}
-        <main className="p-6">
+          ) : null
+        }
+      >
           {activeSection === 'overview' && (
             <div className="space-y-6">
               {/* Welcome Card */}
@@ -546,7 +542,10 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-white">Student Management</h2>
                   <button 
-                    onClick={() => setShowUserModal(true)}
+                    onClick={() => {
+                      setUserModalType('student');
+                      setShowUserModal(true);
+                    }}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors"
                   >
                     Add New Student
@@ -685,16 +684,249 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Other sections placeholder */}
-          {!['overview', 'students', 'lecturers', 'qr-scanner', 'student-history'].includes(activeSection) && (
-            <div className="bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 text-center">
-              <div className="text-6xl mb-4">
-                {menuItems.find(item => item.id === activeSection)?.icon}
+          {/* Course Management Section */}
+          {activeSection === 'courses' && (
+            <div className="space-y-4">
+              <div className="bg-slate-800/50 backdrop-blur-sm p-5 rounded-2xl border border-slate-700/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">📚 Course Management</h2>
+                  <p className="text-slate-400 text-xs mt-1">{adminCourses.length} course{adminCourses.length !== 1 ? 's' : ''} total • {adminCourses.filter((c: any) => c.level === selectedCourseLevel).length} in {selectedCourseLevel}</p>
+                </div>
+                <button onClick={() => { setShowCourseModal(true); setEditingCourse(null); setCourseForm({ courseCode: '', courseName: '', description: '', credits: 3, department: '', level: selectedCourseLevel, semester: 'First' }); setCourseError(''); }} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all text-sm font-medium">+ Add {selectedCourseLevel} Course</button>
               </div>
-              <h2 className="text-2xl font-bold text-white mb-4 capitalize">
+
+              {/* Level Tabs */}
+              <div className="flex bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-1 gap-1 overflow-x-auto">
+                {['100L', '200L', '300L', '400L', '500L', '600L'].map(level => {
+                  const count = adminCourses.filter((c: any) => c.level === level).length;
+                  return (
+                    <button key={level} onClick={() => setSelectedCourseLevel(level)} className={`flex-1 min-w-[60px] px-3 py-2.5 rounded-lg text-xs font-medium transition-all flex flex-col items-center gap-0.5 ${selectedCourseLevel === level ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-700/50'}`}>
+                      <span>{level}</span>
+                      {count > 0 && <span className={`text-[10px] ${selectedCourseLevel === level ? 'text-purple-200' : 'text-slate-500'}`}>{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {courseSuccess && <div className="bg-green-900/30 border border-green-700/50 text-green-400 p-3 rounded-xl text-sm">{courseSuccess}</div>}
+
+              {/* Course Modal */}
+              {showCourseModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                  <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-slate-700/80 shadow-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-bold text-white">{editingCourse ? 'Edit Course' : 'Add Course'}</h3>
+                      <button onClick={() => setShowCourseModal(false)} className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700/50">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                    {courseError && <div className="bg-red-900/30 border border-red-700/50 text-red-400 p-3 rounded-lg mb-4 text-sm">{courseError}</div>}
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Course Code</label>
+                          <input type="text" value={courseForm.courseCode} onChange={(e) => setCourseForm(prev => ({...prev, courseCode: e.target.value}))} placeholder="CSC201" className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Level</label>
+                          <select value={courseForm.level} onChange={(e) => setCourseForm(prev => ({...prev, level: e.target.value}))} className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50">
+                            {['100L','200L','300L','400L','500L','600L'].map(l => <option key={l} value={l}>{l}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Course Name</label>
+                        <input type="text" value={courseForm.courseName} onChange={(e) => setCourseForm(prev => ({...prev, courseName: e.target.value}))} placeholder="Data Structures and Algorithms" className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Department <span className="text-red-400">*</span></label>
+                        <select value={courseForm.department} onChange={(e) => setCourseForm(prev => ({...prev, department: e.target.value}))} className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50">
+                          <option value="">Select department...</option>
+                          <option value="Computer Science">Computer Science</option>
+                          <option value="Mathematics">Mathematics</option>
+                          <option value="Physics">Physics</option>
+                          <option value="Chemistry">Chemistry</option>
+                          <option value="Biology">Biology</option>
+                          <option value="Engineering">Engineering</option>
+                          <option value="Business Administration">Business Administration</option>
+                          <option value="Psychology">Psychology</option>
+                          <option value="English Literature">English Literature</option>
+                          <option value="History">History</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Credits</label>
+                          <input type="number" value={courseForm.credits} onChange={(e) => setCourseForm(prev => ({...prev, credits: parseInt(e.target.value) || 0}))} className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Semester</label>
+                          <select value={courseForm.semester} onChange={(e) => setCourseForm(prev => ({...prev, semester: e.target.value}))} className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50">
+                            <option value="First">First</option>
+                            <option value="Second">Second</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Description (optional)</label>
+                        <textarea value={courseForm.description} onChange={(e) => setCourseForm(prev => ({...prev, description: e.target.value}))} placeholder="Brief course description..." className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none" rows={2} />
+                      </div>
+                      <div className="flex gap-3 pt-2">
+                        <button onClick={() => setShowCourseModal(false)} className="flex-1 border border-slate-600 text-slate-300 py-2.5 rounded-lg hover:bg-slate-700/50 text-sm">Cancel</button>
+                        <button onClick={handleCourseSubmit} className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2.5 rounded-lg hover:from-purple-700 hover:to-pink-700 text-sm font-medium">{editingCourse ? 'Update' : 'Create'}</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Assign Lecturer Modal */}
+              {assigningCourse && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                  <div className="bg-slate-800 rounded-2xl p-6 max-w-md w-full border border-slate-700/80 shadow-2xl max-h-[80vh] overflow-y-auto">
+                    <div className="flex justify-between items-center mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Assign Lecturers</h3>
+                        <p className="text-slate-400 text-xs mt-0.5">{assigningCourse.courseCode} — {assigningCourse.courseName}</p>
+                      </div>
+                      <button onClick={() => setAssigningCourse(null)} className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700/50">
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                    {lecturers.length === 0 ? (
+                      <p className="text-slate-400 text-sm text-center py-6">No lecturers found in your institution</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {lecturers.map((lec) => {
+                          const isAssigned = (assigningCourse.lecturerIds || []).includes(lec.id);
+                          return (
+                            <div key={lec.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isAssigned ? 'bg-green-900/15 border-green-500/25' : 'bg-slate-700/20 border-slate-600/20 hover:border-slate-500/30'}`}>
+                              <div className="flex items-center gap-3">
+                                <div className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-bold ${isAssigned ? 'bg-green-600 text-white' : 'bg-slate-600 text-slate-300'}`}>
+                                  {lec.firstName[0]}{lec.lastName[0]}
+                                </div>
+                                <div>
+                                  <p className="text-white text-sm font-medium">{lec.firstName} {lec.lastName}</p>
+                                  <p className="text-slate-400 text-xs">{lec.department} • {lec.email}</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => toggleLecturerAssignment(assigningCourse._id, lec.id, assigningCourse.lecturerIds || [])}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isAssigned ? 'bg-red-600/20 text-red-300 hover:bg-red-600/30' : 'bg-green-600/20 text-green-300 hover:bg-green-600/30'}`}
+                              >
+                                {isAssigned ? 'Remove' : 'Assign'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Course List */}
+              {loadingAdminCourses ? (
+                <div className="text-center py-16">
+                  <div className="animate-spin rounded-full h-10 w-10 border-2 border-purple-500 border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-slate-400 text-sm">Loading courses...</p>
+                </div>
+              ) : adminCourses.filter((c: any) => c.level === selectedCourseLevel).length === 0 ? (
+                <div className="bg-slate-800/30 rounded-2xl border border-slate-700/30 text-center py-16 px-6">
+                  <div className="h-16 w-16 bg-slate-700/30 rounded-2xl flex items-center justify-center mx-auto mb-4"><span className="text-3xl">📚</span></div>
+                  <p className="text-slate-300 font-medium mb-1">No {selectedCourseLevel} courses yet</p>
+                  <p className="text-slate-500 text-sm">Click "+ Add {selectedCourseLevel} Course" to create one</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {adminCourses.filter((c: any) => c.level === selectedCourseLevel).map((c: any) => (
+                    <div key={c._id} className="group bg-slate-800/40 rounded-xl border border-slate-700/30 p-4 hover:border-slate-600/40 transition-all flex items-center gap-4">
+                      <div className="h-11 w-11 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">{c.courseCode.slice(0, 3)}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-white font-medium text-sm">{c.courseCode}</h4>
+                          <span className="text-[10px] bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-full">{c.level}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-600/20 text-green-300' : 'bg-slate-600/20 text-slate-400'}`}>{c.status}</span>
+                        </div>
+                        <p className="text-slate-300 text-xs mt-0.5">{c.courseName}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[11px] text-slate-500">{c.department}</span>
+                          {c.credits > 0 && <span className="text-[11px] text-slate-500">{c.credits} credits</span>}
+                          {c.semester && <span className="text-[11px] text-slate-500">{c.semester}</span>}
+                          {(() => {
+                            const ids: string[] = c.lecturerIds || [];
+                            if (ids.length === 0) {
+                              return <span className="text-[11px] text-amber-400/80 inline-flex items-center gap-1">👤 Unassigned</span>;
+                            }
+                            const names = ids
+                              .map((id) => {
+                                const lec = lecturers.find((l) => l.id === id);
+                                return lec ? `${lec.role ? lec.role + ' ' : ''}${lec.firstName} ${lec.lastName}`.trim() : null;
+                              })
+                              .filter(Boolean) as string[];
+                            if (names.length === 0) {
+                              return <span className="text-[11px] text-slate-500">{ids.length} lecturer{ids.length !== 1 ? 's' : ''}</span>;
+                            }
+                            const shown = names.slice(0, 2).join(', ');
+                            const extra = names.length - 2;
+                            return (
+                              <span className="text-[11px] text-emerald-400/90 inline-flex items-center gap-1" title={names.join(', ')}>
+                                👤 {shown}{extra > 0 ? ` +${extra} more` : ''}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setAssigningCourse(c)} className="text-green-400 hover:text-green-300 p-2 rounded-lg hover:bg-green-500/10 transition-colors" title="Assign Lecturers">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
+                        </button>
+                        <button onClick={() => { setEditingCourse(c); setCourseForm({ courseCode: c.courseCode, courseName: c.courseName, description: c.description || '', credits: c.credits || 3, department: c.department, level: c.level, semester: c.semester || 'First' }); setShowCourseModal(true); setCourseError(''); }} className="text-blue-400 hover:text-blue-300 p-2 rounded-lg hover:bg-blue-500/10 transition-colors" title="Edit">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                        </button>
+                        <button onClick={() => handleDeleteCourse(c._id)} className="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition-colors" title="Delete">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Attendance — institution-wide overview across all departments */}
+          {activeSection === 'attendance' && (
+            <AdminAttendanceOverview
+              onOpenScanner={(sessionId) => {
+                sessionStorage.setItem('activeAttendanceSessionId', sessionId);
+                setActiveSection('qr-scanner');
+              }}
+            />
+          )}
+
+          {/* Settings Section — grading scale editor */}
+          {activeSection === 'settings' && (
+            <GradeScaleSettings />
+          )}
+
+          {/* Reports & Analytics Section */}
+          {activeSection === 'reports' && (
+            <AdminReports />
+          )}
+
+          {!['overview', 'students', 'lecturers', 'qr-scanner', 'student-history', 'courses', 'attendance', 'settings', 'reports'].includes(activeSection) && (
+            <div className="section-card text-center py-12">
+              <div className="h-12 w-12 rounded-full mx-auto mb-4 flex items-center justify-center"
+                   style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                <Icon name={menuItems.find(item => item.id === activeSection)?.icon ?? 'dashboard'} size={22} />
+              </div>
+              <h2 className="text-[var(--text-primary)] text-lg font-semibold capitalize">
                 {activeSection.replace('-', ' ')}
               </h2>
-              <p className="text-slate-300">This section is coming soon!</p>
+              <p className="text-[var(--text-muted)] text-sm mt-1">Coming soon.</p>
             </div>
           )}
 
@@ -740,9 +972,8 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+      </DashboardShell>
+    </>
   );
 }
 
@@ -762,16 +993,35 @@ function UserCreationModal({
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailInUseElsewhere, setEmailInUseElsewhere] = useState(false);
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     department: '',
-    year: '', // Only for students
-    role: '', // Only for lecturers
-    specialization: '' // Only for lecturers
+    year: '',
+    role: '',
+    specialization: ''
   });
+
+  // Reset form when modal opens or userType changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        department: '',
+        year: '',
+        role: '',
+        specialization: ''
+      });
+      setError('');
+      setEmailInUseElsewhere(false);
+      setSuccess(false);
+    }
+  }, [isOpen, userType]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -779,11 +1029,13 @@ function UserCreationModal({
       [e.target.name]: e.target.value
     });
     setError('');
+    setEmailInUseElsewhere(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailInUseElsewhere(false);
     setIsLoading(true);
 
     try {
@@ -824,8 +1076,11 @@ function UserCreationModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || `Failed to create ${userType} account`);
+        setEmailInUseElsewhere(data.code === 'EMAIL_EXISTS_OTHER_INSTITUTION');
+        throw new Error(data.error || data.message || `Failed to create ${userType} account`);
       }
+
+      setEmailInUseElsewhere(false);
 
       setSuccess(true);
       setTimeout(() => {
@@ -869,8 +1124,26 @@ function UserCreationModal({
         ) : (
           <>
             {error && (
-              <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded-lg">
-                <p className="text-red-400 text-sm">{error}</p>
+              <div
+                className={`mb-4 p-3 rounded-lg border ${
+                  emailInUseElsewhere
+                    ? 'bg-amber-900/25 border-amber-600/50'
+                    : 'bg-red-900/30 border-red-700'
+                }`}
+              >
+                {emailInUseElsewhere && (
+                  <p className="text-amber-300 text-xs font-semibold uppercase tracking-wide mb-1">
+                    Email used at another university
+                  </p>
+                )}
+                <p className={`text-sm ${emailInUseElsewhere ? 'text-amber-100' : 'text-red-400'}`}>
+                  {error}
+                </p>
+                {emailInUseElsewhere && (
+                  <p className="text-amber-200/80 text-xs mt-2">
+                    Ask this {userType} to provide a different email address for your institution, or confirm they have not already been registered at another university with this email.
+                  </p>
+                )}
               </div>
             )}
 

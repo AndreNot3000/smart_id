@@ -2,3 +2,8 @@ export { default as WalletCard } from './WalletCard';
 export { default as TransactionHistory } from './TransactionHistory';
 export { default as TopUpModal } from './TopUpModal';
 export { default as PaymentModal } from './PaymentModal';
+export { default as PaymentsSection } from './PaymentsSection';
+export { default as PendingPaymentsBanner } from './PendingPaymentsBanner';
+export { default as FeeCatalog } from './FeeCatalog';
+export { default as BankTransferCard } from './BankTransferCard';
+export { default as GetAccountNumberModal } from './GetAccountNumberModal';
