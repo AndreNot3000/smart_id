@@ -1,9 +1,11 @@
 // Empty NEXT_PUBLIC_API_URL means "use the same origin as the page" -- this
 // activates the Next.js /api/* proxy in next.config.ts and avoids CORS entirely.
+// Trailing slashes are stripped so a pasted value like
+// "https://host.fly.dev/" never produces a double-slash "//api/..." 404.
 const ENV_API_URL =
   process.env.NEXT_PUBLIC_API_URL !== undefined &&
   process.env.NEXT_PUBLIC_API_URL !== ''
-    ? process.env.NEXT_PUBLIC_API_URL
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')
     : '';
 
 // localStorage key used to persist a runtime API base override per device.
