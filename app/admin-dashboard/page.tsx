@@ -10,6 +10,7 @@ import { AdminAttendanceOverview } from "@/components/attendance";
 import { GradeScaleSettings } from "@/components/admin";
 import { AdminReports } from "@/components/reports";
 import { getApiUrl } from "@/lib/config";
+import { enforceRole } from "@/lib/session";
 
 // API Response Types
 interface DashboardStats {
@@ -90,6 +91,9 @@ export default function AdminDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [searchStudentId, setSearchStudentId] = useState<string>('');
+  // Student History search-by-name/ID combobox
+  const [historyQuery, setHistoryQuery] = useState<string>('');
+  const [selectedHistoryStudent, setSelectedHistoryStudent] = useState<Student | null>(null);
   
   // Data states
   const [adminData, setAdminData] = useState({
@@ -124,16 +128,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        // Guard: the token in this tab must belong to an admin. If a tab
+        // inherited a different user's session (e.g. opened from another tab),
+        // bounce to login instead of rendering the wrong account.
+        if (!enforceRole('admin', router)) return;
+
         const token = sessionStorage.getItem('accessToken');
-        const userData = sessionStorage.getItem('user');
-        
-        console.log('Admin Dashboard - Token:', token ? 'Present' : 'Missing');
-        console.log('Admin Dashboard - User Data:', userData);
-        
-        if (!token) {
-          router.push('/login');
-          return;
-        }
 
         // Fetch all data in parallel
         const [profileRes, statsRes, studentsRes, lecturersRes] = await Promise.all([
@@ -940,33 +940,83 @@ export default function AdminDashboard() {
             <div className="space-y-6">
               <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
                 <h2 className="text-xl font-bold text-white mb-6">Student Attendance History</h2>
-                <p className="text-slate-400 mb-4">Search for a student by their Student ID to view their attendance history</p>
-                
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Student ID
-                  </label>
-                  <input
-                    type="text"
-                    value={searchStudentId}
-                    onChange={(e) => setSearchStudentId(e.target.value)}
-                    placeholder="e.g., UNIBADAN-123456789"
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <p className="text-slate-400 mb-4">Search for a student by name or Student ID to view their attendance history</p>
 
-                {searchStudentId && searchStudentId.length > 5 && (
+                {(() => {
+                  const q = historyQuery.trim().toLowerCase();
+                  const matches = q.length < 1 ? [] : students.filter((s) => {
+                    const name = `${s.firstName} ${s.lastName}`.toLowerCase();
+                    return (
+                      name.includes(q) ||
+                      s.studentId.toLowerCase().includes(q) ||
+                      (s.email || '').toLowerCase().includes(q)
+                    );
+                  }).slice(0, 25);
+                  return (
+                    <div className="mb-6 relative">
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Search by name or Student ID
+                      </label>
+                      <input
+                        type="text"
+                        value={historyQuery}
+                        onChange={(e) => {
+                          setHistoryQuery(e.target.value);
+                          if (selectedHistoryStudent) {
+                            setSelectedHistoryStudent(null);
+                            setSearchStudentId('');
+                          }
+                        }}
+                        placeholder="e.g., John Doe or UNIBADAN-123456789"
+                        className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+
+                      {q.length >= 1 && !selectedHistoryStudent && (
+                        <div className="absolute z-20 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-72 overflow-y-auto">
+                          {matches.length === 0 ? (
+                            <p className="px-4 py-3 text-slate-400 text-sm">No students found.</p>
+                          ) : (
+                            matches.map((s) => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedHistoryStudent(s);
+                                  setSearchStudentId(s.studentId);
+                                  setHistoryQuery(`${s.firstName} ${s.lastName}`);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-slate-700/70 transition-colors flex items-center gap-3 border-b border-slate-700/50 last:border-0"
+                              >
+                                <div className="h-8 w-8 rounded-full bg-blue-600/30 text-blue-300 flex items-center justify-center text-xs font-semibold shrink-0">
+                                  {s.firstName[0]}{s.lastName[0]}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-white text-sm font-medium truncate">
+                                    {s.firstName} {s.lastName}
+                                  </p>
+                                  <p className="text-slate-400 text-xs truncate">
+                                    {s.studentId} · {s.department} · {s.year}
+                                  </p>
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {searchStudentId && searchStudentId.length > 5 ? (
                   <AttendanceHistory studentId={searchStudentId} />
-                )}
-
-                {(!searchStudentId || searchStudentId.length <= 5) && (
+                ) : (
                   <div className="text-center py-12">
                     <div className="h-16 w-16 bg-slate-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
                       <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                       </svg>
                     </div>
-                    <p className="text-slate-400">Enter a student ID to view their attendance history</p>
+                    <p className="text-slate-400">Search by name or Student ID to view attendance history</p>
                   </div>
                 )}
               </div>

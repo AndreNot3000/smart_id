@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import QRCodeSVG from "react-qr-code";
+import { qrService } from "@/lib/qrService";
 import { DashboardShell, Icon, StatCard, type NavItem } from "@/components/dashboard";
+import { LecturerProfilePage } from "@/components/profile";
 import QRScannerNew from "@/components/qr/QRScannerNew";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
 import { AttendanceManagement } from "@/components/attendance";
 import { LecturerGradebook } from "@/components/grades";
 import { LecturerReports } from "@/components/reports";
 import { getApiUrl } from "@/lib/config";
+import { enforceRole } from "@/lib/session";
 import { validateScheduleNotInPast, validateScheduleTimeRange } from "@/lib/scheduleTime";
 
 // API Response Types
@@ -89,10 +93,19 @@ export default function LecturerDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Course | null>(null);
   const [showQRCode, setShowQRCode] = useState(false);
+  // Real, scannable Faculty QR code (JWT token from the backend)
+  const [lecturerQrData, setLecturerQrData] = useState<string>('');
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrError, setQrError] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
   const [scannedStudents, setScannedStudents] = useState<ScannedStudent[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [searchStudentId, setSearchStudentId] = useState<string>('');
+  // Student History search-by-name/ID combobox
+  const [historyQuery, setHistoryQuery] = useState<string>('');
+  const [historyResults, setHistoryResults] = useState<Student[]>([]);
+  const [historySearching, setHistorySearching] = useState(false);
+  const [selectedHistoryStudent, setSelectedHistoryStudent] = useState<Student | null>(null);
   
   // Student records states
   const [studentsData, setStudentsData] = useState<StudentsData | null>(null);
@@ -139,6 +152,9 @@ export default function LecturerDashboard() {
   const [uploading, setUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [courseTab, setCourseTab] = useState<'materials' | 'announcements' | 'assignments' | 'quizzes'>('materials');
+  // When a course is opened via a Quick Action, remember which tab to land on
+  // (the selectedLecCourse effect otherwise resets it to "materials").
+  const pendingCourseTabRef = useRef<'materials' | 'announcements' | 'assignments' | 'quizzes' | null>(null);
   const [lecAnnouncements, setLecAnnouncements] = useState<any[]>([]);
   const [lecAssignments, setLecAssignments] = useState<any[]>([]);
   const [lecQuizzes, setLecQuizzes] = useState<any[]>([]);
@@ -223,16 +239,12 @@ export default function LecturerDashboard() {
   useEffect(() => {
     const fetchLecturerData = async () => {
       try {
+        // Guard: the token in this tab must belong to a lecturer. If a tab
+        // inherited a different user's session (e.g. opened from another tab),
+        // bounce to login instead of rendering the wrong account.
+        if (!enforceRole('lecturer', router)) return;
+
         const token = sessionStorage.getItem('accessToken');
-        const userData = sessionStorage.getItem('user');
-        
-        console.log('Lecturer Dashboard - Token:', token ? 'Present' : 'Missing');
-        console.log('Lecturer Dashboard - User Data:', userData);
-        
-        if (!token) {
-          router.push('/login');
-          return;
-        }
 
         const response = await fetch(getApiUrl('/api/users/profile'), {
           headers: {
@@ -279,6 +291,30 @@ export default function LecturerDashboard() {
 
     fetchLecturerData();
   }, [router]);
+
+  // Re-fetch profile so header avatar/name update live (e.g. after photo upload)
+  const refreshLecturerProfile = async () => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const response = await fetch(getApiUrl('/api/users/profile'), {
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) return;
+      const profileData: LecturerProfile = await response.json();
+      setLecturerData(prev => ({
+        ...prev,
+        name: `${profileData.profile.firstName} ${profileData.profile.lastName}`,
+        department: profileData.profile.department,
+        title: `${profileData.profile.role}. ${profileData.profile.firstName} ${profileData.profile.lastName}`,
+        role: profileData.profile.role,
+        specialization: profileData.profile.specialization,
+        avatar: profileData.profile.avatar,
+      }));
+    } catch {
+      // ignore — header will refresh on next load
+    }
+  };
 
   // Fetch real-time stats
   const fetchLecturerStats = async () => {
@@ -423,7 +459,12 @@ export default function LecturerDashboard() {
       const res = await fetch(getApiUrl('/api/course/activities'), { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
-        setRecentActivities(data.activities || []);
+        // Only keep activities from the last 6 days — older ones make the list too long.
+        const cutoff = Date.now() - 6 * 24 * 60 * 60 * 1000;
+        const recent = (data.activities || []).filter(
+          (a: any) => new Date(a.createdAt).getTime() >= cutoff
+        );
+        setRecentActivities(recent);
       } else {
         console.error('Activities fetch failed:', res.status, await res.text());
       }
@@ -487,6 +528,7 @@ export default function LecturerDashboard() {
     { id: 'office-hours', name: 'Office Hours', icon: 'clock' },
     { id: 'reports', name: 'Reports & Analytics', icon: 'trendingUp' },
     { id: 'qr-code', name: 'My QR Code', icon: 'qrCode' },
+    { id: 'profile', name: 'My Profile', icon: 'user' },
     { id: 'settings', name: 'Settings', icon: 'settings' },
   ];
 
@@ -530,6 +572,170 @@ export default function LecturerDashboard() {
       fetchStudents(selectedLevel, studentSearch);
     }
   }, [activeSection, selectedLevel, studentSearch]);
+
+  // Generate the lecturer's real (scannable) Faculty QR code on demand.
+  const generateLecturerQR = async () => {
+    if (lecturerQrData || qrLoading) return;
+    setQrLoading(true);
+    setQrError('');
+    try {
+      const res = await qrService.generateQRCode();
+      setLecturerQrData(res.qrData);
+    } catch (err: any) {
+      setQrError(err?.message || 'Failed to generate QR code');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  // Build the QR when the QR section is opened or the ID modal is shown.
+  useEffect(() => {
+    if (activeSection === 'qr-code' || showQRCode) {
+      generateLecturerQR();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, showQRCode]);
+
+  // Download the rendered Faculty QR (with the centered initials/avatar) as a PNG.
+  const downloadLecturerQR = () => {
+    const card = document.getElementById('lecturer-qr-card');
+    const svg = card?.querySelector('svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const qrImg = new Image();
+    qrImg.onload = () => {
+      const size = 600;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); return; }
+      const g: CanvasRenderingContext2D = ctx;
+
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, size, size);
+      g.drawImage(qrImg, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+
+      const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
+        g.beginPath();
+        g.moveTo(x + r, y);
+        g.arcTo(x + w, y, x + w, y + h, r);
+        g.arcTo(x + w, y + h, x, y + h, r);
+        g.arcTo(x, y + h, x, y, r);
+        g.arcTo(x, y, x + w, y, r);
+        g.closePath();
+      };
+
+      const badge = 150;
+      const bx = (size - badge) / 2;
+      const by = (size - badge) / 2;
+      const inner = badge - 24;
+      const ix = bx + 12;
+      const iy = by + 12;
+
+      // White rounded badge backdrop (matches the on-screen overlay)
+      roundRect(bx, by, badge, badge, 20);
+      g.fillStyle = '#ffffff';
+      g.fill();
+
+      const finalize = () => {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `faculty-qr-${lecturerData.id || 'id'}.png`;
+        a.click();
+      };
+
+      const drawInitials = () => {
+        const grad = g.createLinearGradient(ix, iy, ix + inner, iy + inner);
+        grad.addColorStop(0, '#3b82f6');
+        grad.addColorStop(1, '#9333ea');
+        g.save();
+        roundRect(ix, iy, inner, inner, 14);
+        g.clip();
+        g.fillStyle = grad;
+        g.fillRect(ix, iy, inner, inner);
+        g.fillStyle = '#ffffff';
+        g.font = `bold ${Math.floor(inner * 0.42)}px sans-serif`;
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        const ini = lecturerData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        g.fillText(ini, ix + inner / 2, iy + inner / 2 + 2);
+        g.restore();
+      };
+
+      if (lecturerData.avatar && lecturerData.avatar.startsWith('data:image')) {
+        const av = new Image();
+        av.onload = () => {
+          g.save();
+          roundRect(ix, iy, inner, inner, 14);
+          g.clip();
+          g.drawImage(av, ix, iy, inner, inner);
+          g.restore();
+          finalize();
+        };
+        av.onerror = () => { drawInitials(); finalize(); };
+        av.src = lecturerData.avatar;
+      } else {
+        drawInitials();
+        finalize();
+      }
+    };
+    qrImg.src = url;
+  };
+
+  // Share the Faculty ID via the Web Share API when available.
+  const shareLecturerQR = async () => {
+    const shareData = {
+      title: 'Faculty Digital ID',
+      text: `${lecturerData.name} · ${lecturerData.id} · ${lecturerData.department}`,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.text);
+        alert('Faculty ID details copied to clipboard');
+      }
+    } catch {
+      // user cancelled or share unavailable — ignore
+    }
+  };
+
+  // Debounced search for the Student History combobox (by name, ID, or email)
+  useEffect(() => {
+    const q = historyQuery.trim();
+    if (q.length < 2) {
+      setHistoryResults([]);
+      setHistorySearching(false);
+      return;
+    }
+    setHistorySearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const token = sessionStorage.getItem('accessToken');
+        if (!token) return;
+        const res = await fetch(
+          getApiUrl(`/api/lecturers/students?search=${encodeURIComponent(q)}`),
+          { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+        );
+        if (res.ok) {
+          const data: StudentsData = await res.json();
+          const list = data.students ?? Object.values(data.groupedByLevel ?? {}).flat();
+          setHistoryResults(list);
+        } else {
+          setHistoryResults([]);
+        }
+      } catch {
+        setHistoryResults([]);
+      } finally {
+        setHistorySearching(false);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [historyQuery]);
 
   // Schedule functions
   const fetchSchedule = async (view?: string, date?: string) => {
@@ -1207,7 +1413,8 @@ export default function LecturerDashboard() {
       fetchLecAnnouncements(selectedLecCourse._id);
       fetchLecAssignments(selectedLecCourse._id);
       fetchLecQuizzes(selectedLecCourse._id);
-      setCourseTab('materials');
+      setCourseTab(pendingCourseTabRef.current || 'materials');
+      pendingCourseTabRef.current = null;
     }
   }, [selectedLecCourse]);
 
@@ -1258,8 +1465,19 @@ export default function LecturerDashboard() {
       setActiveSection('attendance');
     } else if (actionId === 'view-schedule') {
       setActiveSection('courses');
+    } else if (actionId === 'post-grades') {
+      setActiveSection('grades');
+    } else if (actionId === 'send-announcement') {
+      // Announcements are posted from within a course (My Courses → Announcements tab).
+      if (selectedLecCourse) {
+        setCourseTab('announcements');
+      } else {
+        pendingCourseTabRef.current = 'announcements';
+      }
+      setActiveSection('courses');
+    } else if (actionId === 'view-reports') {
+      setActiveSection('reports');
     }
-    // Handle other actions
   };
 
   // Show loading state
@@ -1300,8 +1518,34 @@ export default function LecturerDashboard() {
           <div className="bg-slate-800 rounded-2xl p-8 max-w-md w-full border border-slate-700">
             <div className="text-center">
               <h3 className="text-xl font-bold text-white mb-4">Faculty Digital ID</h3>
-              <div className="bg-white rounded-lg p-4 mb-4">
-                <img src={lecturerData.qrCode} alt="Faculty QR Code" className="w-full h-auto" />
+              <div className="bg-white rounded-lg p-4 mb-4 flex items-center justify-center min-h-[220px]">
+                {qrLoading ? (
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+                ) : qrError ? (
+                  <div className="text-center">
+                    <p className="text-red-600 text-sm mb-2">{qrError}</p>
+                    <button onClick={generateLecturerQR} className="text-blue-600 text-sm underline">Retry</button>
+                  </div>
+                ) : lecturerQrData ? (
+                  <div className="relative inline-block">
+                    <QRCodeSVG value={lecturerQrData} size={200} level="H" style={{ height: 'auto', maxWidth: '100%', width: '200px' }} />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                      <div className="bg-white rounded-lg p-1.5 shadow-lg border-2 border-slate-200">
+                        <div className="h-10 w-10 rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                          {lecturerData.avatar && lecturerData.avatar.startsWith('data:image') ? (
+                            <img src={lecturerData.avatar} alt="Profile" className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-white font-bold text-xs">
+                              {lecturerData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-slate-500 text-sm">No QR code available</p>
+                )}
               </div>
               <div className="space-y-2 text-left">
                 <div className="flex justify-between">
@@ -1499,7 +1743,10 @@ export default function LecturerDashboard() {
           name: lecturerData.name,
           subtitle: lecturerData.title,
           secondary: lecturerData.department,
-          initials: lecturerData.avatar,
+          avatar: lecturerData.avatar,
+          initials: lecturerData.name
+            ? lecturerData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+            : 'LC',
         }}
         topbarActions={
           <button
@@ -1689,33 +1936,79 @@ export default function LecturerDashboard() {
             <div className="space-y-6">
               <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
                 <h2 className="text-xl font-bold text-white mb-6">Student Attendance History</h2>
-                <p className="text-slate-400 mb-4">Search for a student by their Student ID to view their attendance history</p>
-                
-                <div className="mb-6">
+                <p className="text-slate-400 mb-4">Search for a student by name or Student ID to view their attendance history</p>
+
+                <div className="mb-6 relative">
                   <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Student ID
+                    Search by name or Student ID
                   </label>
-                  <input
-                    type="text"
-                    value={searchStudentId}
-                    onChange={(e) => setSearchStudentId(e.target.value)}
-                    placeholder="e.g., UNIBADAN-123456789"
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={historyQuery}
+                      onChange={(e) => {
+                        setHistoryQuery(e.target.value);
+                        if (selectedHistoryStudent) {
+                          setSelectedHistoryStudent(null);
+                          setSearchStudentId('');
+                        }
+                      }}
+                      placeholder="e.g., John Doe or UNIBADAN-123456789"
+                      className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {historySearching && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+
+                  {/* Results dropdown */}
+                  {historyQuery.trim().length >= 2 && !selectedHistoryStudent && (
+                    <div className="absolute z-20 mt-1 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-72 overflow-y-auto">
+                      {historySearching && historyResults.length === 0 ? (
+                        <p className="px-4 py-3 text-slate-400 text-sm">Searching…</p>
+                      ) : historyResults.length === 0 ? (
+                        <p className="px-4 py-3 text-slate-400 text-sm">No students found.</p>
+                      ) : (
+                        historyResults.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedHistoryStudent(s);
+                              setSearchStudentId(s.profile.studentId);
+                              setHistoryQuery(`${s.profile.firstName} ${s.profile.lastName}`);
+                              setHistoryResults([]);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-slate-700/70 transition-colors flex items-center gap-3 border-b border-slate-700/50 last:border-0"
+                          >
+                            <div className="h-8 w-8 rounded-full bg-blue-600/30 text-blue-300 flex items-center justify-center text-xs font-semibold shrink-0">
+                              {s.profile.firstName[0]}{s.profile.lastName[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-white text-sm font-medium truncate">
+                                {s.profile.firstName} {s.profile.lastName}
+                              </p>
+                              <p className="text-slate-400 text-xs truncate">
+                                {s.profile.studentId} · {s.profile.department} · {s.profile.year}
+                              </p>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {searchStudentId && searchStudentId.length > 5 && (
+                {searchStudentId && searchStudentId.length > 5 ? (
                   <AttendanceHistory studentId={searchStudentId} />
-                )}
-
-                {(!searchStudentId || searchStudentId.length <= 5) && (
+                ) : (
                   <div className="text-center py-12">
                     <div className="h-16 w-16 bg-slate-700/30 rounded-full flex items-center justify-center mx-auto mb-4">
                       <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                       </svg>
                     </div>
-                    <p className="text-slate-400">Enter a student ID to view their attendance history</p>
+                    <p className="text-slate-400">Search by name or Student ID to view attendance history</p>
                   </div>
                 )}
               </div>
@@ -2822,9 +3115,36 @@ export default function LecturerDashboard() {
             <div className="space-y-6">
               <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-6 sm:p-8 rounded-2xl border border-slate-700/50">
                 <div className="text-center">
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-6">My Faculty ID</h2>
-                  <div className="bg-white rounded-lg p-4 sm:p-6 max-w-sm mx-auto mb-6">
-                    <img src={lecturerData.qrCode} alt="Faculty QR Code" className="w-full h-auto" />
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">My Faculty ID</h2>
+                  <p className="text-slate-400 text-sm mb-6">Show this QR code to an admin to verify your identity</p>
+                  <div id="lecturer-qr-card" className="bg-white rounded-lg p-4 sm:p-6 max-w-sm mx-auto mb-6 flex items-center justify-center min-h-[260px]">
+                    {qrLoading ? (
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+                    ) : qrError ? (
+                      <div className="text-center">
+                        <p className="text-red-600 text-sm mb-2">{qrError}</p>
+                        <button onClick={generateLecturerQR} className="text-blue-600 text-sm underline">Retry</button>
+                      </div>
+                    ) : lecturerQrData ? (
+                      <div className="relative inline-block">
+                        <QRCodeSVG value={lecturerQrData} size={240} level="H" style={{ height: 'auto', maxWidth: '100%', width: '240px' }} />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                          <div className="bg-white rounded-lg p-1.5 shadow-lg border-2 border-slate-200">
+                            <div className="h-12 w-12 rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                              {lecturerData.avatar && lecturerData.avatar.startsWith('data:image') ? (
+                                <img src={lecturerData.avatar} alt="Profile" className="h-full w-full object-cover" />
+                              ) : (
+                                <span className="text-white font-bold text-sm">
+                                  {lecturerData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-slate-500 text-sm">No QR code available</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto text-left">
                     <div>
@@ -2845,10 +3165,17 @@ export default function LecturerDashboard() {
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
-                    <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors touch-manipulation">
+                    <button
+                      onClick={downloadLecturerQR}
+                      disabled={!lecturerQrData}
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       Download QR
                     </button>
-                    <button className="border border-slate-600 text-slate-300 px-6 py-2 rounded-lg hover:bg-slate-700/50 transition-colors touch-manipulation">
+                    <button
+                      onClick={shareLecturerQR}
+                      className="border border-slate-600 text-slate-300 px-6 py-2 rounded-lg hover:bg-slate-700/50 transition-colors touch-manipulation"
+                    >
                       Share
                     </button>
                   </div>
@@ -2936,10 +3263,18 @@ export default function LecturerDashboard() {
                               <div key={student.id} className="bg-slate-700/30 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-4">
-                                    <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <div className="relative h-12 w-12 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                                       <span className="text-white font-bold">
                                         {student.profile.firstName[0]}{student.profile.lastName[0]}
                                       </span>
+                                      {student.profile.avatar && /^(data:image|https?:)/.test(student.profile.avatar) && (
+                                        <img
+                                          src={student.profile.avatar}
+                                          alt={`${student.profile.firstName} ${student.profile.lastName}`}
+                                          className="absolute inset-0 h-full w-full object-cover"
+                                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                        />
+                                      )}
                                     </div>
                                     <div>
                                       <h4 className="text-white font-medium">
@@ -2987,10 +3322,18 @@ export default function LecturerDashboard() {
                                   <div key={student.id} className="bg-slate-700/30 rounded-lg p-4 hover:bg-slate-700/50 transition-colors">
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center space-x-4">
-                                        <div className="h-12 w-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <div className="relative h-12 w-12 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                                           <span className="text-white font-bold">
                                             {student.profile.firstName[0]}{student.profile.lastName[0]}
                                           </span>
+                                          {student.profile.avatar && /^(data:image|https?:)/.test(student.profile.avatar) && (
+                                            <img
+                                              src={student.profile.avatar}
+                                              alt={`${student.profile.firstName} ${student.profile.lastName}`}
+                                              className="absolute inset-0 h-full w-full object-cover"
+                                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                            />
+                                          )}
                                         </div>
                                         <div>
                                           <h4 className="text-white font-medium">
@@ -3682,7 +4025,11 @@ export default function LecturerDashboard() {
             <LecturerReports />
           )}
 
-          {!['overview', 'qr-scanner', 'attendance', 'courses', 'qr-code', 'student-records', 'student-history', 'schedule', 'grades', 'reports'].includes(activeSection) && (
+          {activeSection === 'profile' && (
+            <LecturerProfilePage onProfileUpdate={refreshLecturerProfile} />
+          )}
+
+          {!['overview', 'qr-scanner', 'attendance', 'courses', 'qr-code', 'profile', 'student-records', 'student-history', 'schedule', 'grades', 'reports'].includes(activeSection) && (
             <div className="section-card text-center py-12">
               <div className="h-12 w-12 rounded-full mx-auto mb-4 flex items-center justify-center"
                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>

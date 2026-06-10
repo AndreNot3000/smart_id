@@ -11,6 +11,7 @@ import PaymentsSection from "@/components/wallet/PaymentsSection";
 import QuizTaker from "@/components/quiz/QuizTaker";
 import RichTextEditor from "@/components/editor/RichTextEditor";
 import { getApiUrl } from "@/lib/config";
+import { enforceRole } from "@/lib/session";
 import { profileService } from "@/lib/profileService";
 
 // Types for API responses
@@ -150,12 +151,12 @@ export default function TestDashboard() {
 
   const fetchStudentProfile = async () => {
     try {
+      // Guard: the token in this tab must belong to a student. If a tab
+      // inherited a different user's session (e.g. opened from another tab),
+      // bounce to login instead of rendering the wrong account.
+      if (!enforceRole('student', router)) return;
+
       const token = sessionStorage.getItem('accessToken');
-      
-      if (!token) {
-        router.push('/login');
-        return;
-      }
 
       console.log('Fetching student profile...');
 

@@ -35,10 +35,20 @@ type RecentScan = {
   location?: string;
 };
 
-type Timing = { totalMs: number; serverMs: number | null };
+type IdentityPerson = {
+  name: string;
+  idLabel: string;
+  idValue: string;
+  department: string;
+  subtitle: string;
+  avatar: string | null;
+  email: string;
+  status: string;
+};
+
 
 const COOLDOWN_MS = 1500; // window during which the same QR is ignored after success
-const RESUME_DELAY_MS = 900; // delay before auto-resuming the camera in rapid mode
+const RESUME_DELAY_MS = 600; // delay before auto-resuming the camera in rapid mode
 const RECENT_LIMIT = 6;
 
 const playBeep = (() => {
@@ -92,12 +102,11 @@ const initials = (first?: string, last?: string) =>
 export default function QRScannerNew({ className = "" }: { className?: string }) {
   const [isScanning, setIsScanning] = useState(false);
   const [overlay, setOverlay] = useState<
-    | { type: "success"; student: ScannedStudent; recordedAt: string; timing: Timing }
+    | { type: "success"; student: ScannedStudent; recordedAt: string }
+    | { type: "identity"; person: IdentityPerson; userType: "student" | "lecturer"; recordedAt: string }
     | { type: "error"; message: string }
     | null
   >(null);
-
-  const [lastTiming, setLastTiming] = useState<Timing | null>(null);
 
   const [detailsFor, setDetailsFor] = useState<
     | {
@@ -135,6 +144,7 @@ export default function QRScannerNew({ className = "" }: { className?: string })
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const cooldownRef = useRef<Map<string, number>>(new Map());
   const isProcessingRef = useRef(false);
+  const autoStartedRef = useRef(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const qrRegionId = "qr-reader-new";
@@ -186,7 +196,6 @@ export default function QRScannerNew({ className = "" }: { className?: string })
           }
         }
 
-        const startedAt = performance.now();
         const token = sessionStorage.getItem("accessToken");
         const response = await fetch(`${API_BASE_URL}/api/qr/scan-attendance`, {
           method: "POST",
@@ -201,11 +210,6 @@ export default function QRScannerNew({ className = "" }: { className?: string })
             sessionId: linkedSession?.id,
           }),
         });
-        const totalMs = Math.round(performance.now() - startedAt);
-        const serverHeader = response.headers.get("X-Response-Time");
-        const serverMs = serverHeader ? parseInt(serverHeader.replace(/\D/g, ""), 10) : null;
-        const timing: Timing = { totalMs, serverMs };
-        setLastTiming(timing);
 
         if (!response.ok) {
           const errBody = await response.json().catch(() => ({}));
@@ -213,6 +217,49 @@ export default function QRScannerNew({ className = "" }: { className?: string })
             throw new Error(
               `${errBody.studentName || "Student"} is not on this course roster`,
             );
+          }
+          // Attendance is students-only. The QR may belong to a lecturer, so
+          // fall back to identity verification — this lets admins scan a
+          // lecturer's QR code and confirm their identity, just like students.
+          try {
+            const verify = await qrService.verifyQRCode(decodedText);
+            if (verify?.verified) {
+              const u = verify.userInfo;
+              const isLecturer = verify.userType === "lecturer";
+              const person: IdentityPerson = {
+                name: `${u.firstName} ${u.lastName}`.trim(),
+                idLabel: isLecturer ? "Faculty ID" : "Student ID",
+                idValue: (isLecturer ? u.lecturerId : u.studentId) || "",
+                department: u.department || "",
+                subtitle: isLecturer
+                  ? [u.role, u.specialization].filter(Boolean).join(" · ")
+                  : u.year || "",
+                avatar: u.avatar || null,
+                email: u.email || "",
+                status: u.status || "active",
+              };
+              playBeep("success");
+              vibrate([50, 30, 50]);
+              setOverlay({
+                type: "identity",
+                person,
+                userType: verify.userType,
+                recordedAt: verify.scannedAt,
+              });
+              if (rapidMode) {
+                if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+                overlayTimerRef.current = setTimeout(() => {
+                  setOverlay(null);
+                  if (scannerRef.current) scannerRef.current.resume();
+                  isProcessingRef.current = false;
+                }, 2400);
+              } else {
+                isProcessingRef.current = false;
+              }
+              return;
+            }
+          } catch {
+            // verification failed too — surface the original attendance error
           }
           throw new Error(errBody.error || errBody.message || `HTTP ${response.status}`);
         }
@@ -238,7 +285,7 @@ export default function QRScannerNew({ className = "" }: { className?: string })
         playBeep("success");
         vibrate([60, 40, 60]);
 
-        setOverlay({ type: "success", student: safeStudent, recordedAt: res.scannedAt, timing });
+        setOverlay({ type: "success", student: safeStudent, recordedAt: res.scannedAt });
         setRecent((prev) =>
           [
             {
@@ -316,23 +363,35 @@ export default function QRScannerNew({ className = "" }: { className?: string })
       await html5QrCode.start(
         { facingMode },
         {
-          // iOS Safari falls back to a JS decoder; lower fps avoids dropped frames
-          fps: isIOS ? 15 : 25,
-          qrbox: (vw, vh) => {
-            const min = Math.min(vw, vh);
-            const size = Math.floor(min * 0.8);
-            return { width: size, height: size };
-          },
+          // More decode attempts per second = the QR is caught the instant it's
+          // sharp. iOS uses a JS decoder, so keep it a touch lower there.
+          fps: isIOS ? 20 : 30,
+          // On Android/desktop the native BarcodeDetector scans the WHOLE frame
+          // cheaply, so we omit qrbox entirely — a QR is found anywhere in view
+          // and the user never has to centre their device. iOS falls back to a
+          // JS decoder where a full high-res frame is expensive, so there we
+          // bound it to a generous 90% box to stay swift while still covering
+          // almost the entire view.
+          ...(isIOS
+            ? {
+                qrbox: (vw: number, vh: number) => {
+                  const size = Math.floor(Math.min(vw, vh) * 0.9);
+                  return { width: size, height: size };
+                },
+              }
+            : {}),
           aspectRatio: 1.0,
           // QR codes don't need mirror detection - skipping the flip
           // attempt almost doubles effective scan throughput.
           disableFlip: true,
-          // Ask for the highest practical resolution. More pixels = QR
-          // codes can be detected from farther away even on iOS.
+          // Request the highest practical resolution. More pixels means a QR
+          // held farther from the camera still resolves enough detail to decode,
+          // so the device no longer has to be right up against the code.
           videoConstraints: {
             facingMode,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
+            width: { ideal: 2560 },
+            height: { ideal: 1440 },
+            frameRate: { ideal: 30 },
           } as MediaTrackConstraints,
         },
         (decoded) => {
@@ -355,18 +414,11 @@ export default function QRScannerNew({ className = "" }: { className?: string })
         const zoomCap = (caps as unknown as { zoom?: { min: number; max: number; step?: number } }).zoom;
         if (zoomCap && typeof zoomCap.min === "number" && typeof zoomCap.max === "number") {
           setZoomCaps({ min: zoomCap.min, max: zoomCap.max, step: zoomCap.step || 0.1 });
-          // Pre-zoom slightly so users don't have to be on top of the QR
-          const initial = Math.min(Math.max(1.5, zoomCap.min), zoomCap.max);
-          try {
-            await (html5QrCode as unknown as {
-              applyVideoConstraints: (c: MediaTrackConstraints) => Promise<void>;
-            }).applyVideoConstraints({
-              advanced: [{ zoom: initial } as MediaTrackConstraintSet],
-            });
-            setZoom(initial);
-          } catch {
-            // device rejected zoom, leave at 1
-          }
+          // Keep a wide field of view (no forced zoom). Zoom magnifies but
+          // narrows the view, which actually forces the user closer/aligned.
+          // High resolution above does the "scan from far" work; the manual
+          // zoom slider is still available if someone wants to magnify.
+          setZoom(Math.max(1, zoomCap.min));
         }
 
         // Try continuous autofocus where supported (most modern phones).
@@ -438,6 +490,16 @@ export default function QRScannerNew({ className = "" }: { className?: string })
       setTimeout(() => startScanner(), 150);
     }
   }, [isScanning, startScanner, stopCameraInternal]);
+
+  // Auto-start the camera the first time the scanner mounts so the flow feels
+  // instant — no extra "Start" tap before the camera is live.
+  useEffect(() => {
+    if (autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    const t = setTimeout(() => startScanner(), 120);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load attendance session when opened from Attendance Management
   useEffect(() => {
@@ -512,16 +574,6 @@ export default function QRScannerNew({ className = "" }: { className?: string })
               {purpose}
               {location ? ` · ${location}` : ""}
               {sessionStartedAt ? ` · ${sessionTotal} marked` : ""}
-              {lastTiming && (
-                <span className="ml-2 rounded-full bg-white/[0.04] px-2 py-0.5 text-[10px] text-slate-300">
-                  ⚡ {lastTiming.totalMs}ms
-                  {lastTiming.serverMs != null && (
-                    <span className="ml-1 text-slate-500">
-                      ({lastTiming.serverMs}ms srv)
-                    </span>
-                  )}
-                </span>
-              )}
             </p>
           </div>
         </div>
@@ -624,8 +676,8 @@ export default function QRScannerNew({ className = "" }: { className?: string })
             <div className="space-y-1.5">
               <h3 className="text-xl font-semibold text-white">Ready to scan</h3>
               <p className="max-w-sm text-sm text-slate-400">
-                Tap start, then point the camera at a student&apos;s QR code. In rapid mode, attendance is marked
-                automatically as you scan.
+                Start the camera and hold any QR code in view — no need to line it up. It reads instantly and,
+                in rapid mode, marks attendance automatically.
               </p>
             </div>
             <button
@@ -651,23 +703,24 @@ export default function QRScannerNew({ className = "" }: { className?: string })
             <div className="relative overflow-hidden rounded-3xl bg-black ring-1 ring-white/10" style={{ aspectRatio: "1 / 1", maxHeight: 520 }}>
               <div id={qrRegionId} className="absolute inset-0" />
 
-              {/* Centered reticle */}
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="relative" style={{ width: "65%", height: "65%" }}>
-                  <span className="absolute -left-px -top-px h-7 w-7 rounded-tl-2xl border-l-2 border-t-2 border-emerald-300/90" />
-                  <span className="absolute -right-px -top-px h-7 w-7 rounded-tr-2xl border-r-2 border-t-2 border-emerald-300/90" />
-                  <span className="absolute -bottom-px -left-px h-7 w-7 rounded-bl-2xl border-b-2 border-l-2 border-emerald-300/90" />
-                  <span className="absolute -bottom-px -right-px h-7 w-7 rounded-br-2xl border-b-2 border-r-2 border-emerald-300/90" />
+              {/* Full-frame guide — the whole view is scanned, so the brackets
+                  just frame the live feed rather than a small target box. */}
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-5">
+                <div className="relative h-full w-full">
+                  <span className="absolute -left-px -top-px h-9 w-9 rounded-tl-3xl border-l-2 border-t-2 border-emerald-300/80" />
+                  <span className="absolute -right-px -top-px h-9 w-9 rounded-tr-3xl border-r-2 border-t-2 border-emerald-300/80" />
+                  <span className="absolute -bottom-px -left-px h-9 w-9 rounded-bl-3xl border-b-2 border-l-2 border-emerald-300/80" />
+                  <span className="absolute -bottom-px -right-px h-9 w-9 rounded-br-3xl border-b-2 border-r-2 border-emerald-300/80" />
                   <span className="absolute left-0 right-0 h-px animate-scan-line bg-emerald-300/70 shadow-[0_0_12px_2px_rgba(110,231,183,0.6)]" />
                 </div>
               </div>
 
-              {/* Dim overlay outside reticle */}
+              {/* Subtle vignette for depth (does not restrict the scan area) */}
               <div
                 className="pointer-events-none absolute inset-0"
                 style={{
                   background:
-                    "radial-gradient(closest-side at 50% 50%, transparent 38%, rgba(0,0,0,0.55) 70%)",
+                    "radial-gradient(closest-side at 50% 50%, transparent 70%, rgba(0,0,0,0.35) 100%)",
                 }}
               />
 
@@ -726,7 +779,7 @@ export default function QRScannerNew({ className = "" }: { className?: string })
               {/* Hint bar */}
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-center">
                 <span className="rounded-full bg-black/45 px-4 py-1.5 text-[11px] text-slate-100/90 backdrop-blur">
-                  Centre the student&apos;s QR inside the box
+                  Point at any QR code — it scans automatically
                 </span>
               </div>
 
@@ -775,7 +828,6 @@ export default function QRScannerNew({ className = "" }: { className?: string })
                   {overlay.type === "success" ? (
                     <SuccessCard
                       student={overlay.student}
-                      timing={overlay.timing}
                       onContinue={() => {
                         if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
                         setOverlay(null);
@@ -797,6 +849,23 @@ export default function QRScannerNew({ className = "" }: { className?: string })
                         });
                       }}
                       autoContinue={rapidMode}
+                    />
+                  ) : overlay.type === "identity" ? (
+                    <IdentityCard
+                      person={overlay.person}
+                      userType={overlay.userType}
+                      autoContinue={rapidMode}
+                      onContinue={() => {
+                        if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+                        setOverlay(null);
+                        if (scannerRef.current) scannerRef.current.resume();
+                        isProcessingRef.current = false;
+                      }}
+                      onStop={() => {
+                        if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+                        setOverlay(null);
+                        stopScanner();
+                      }}
                     />
                   ) : (
                     <div className="mx-6 max-w-sm rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-center backdrop-blur-md">
@@ -916,17 +985,13 @@ function SuccessCard({
   onStop,
   onOpenDetails,
   autoContinue,
-  timing,
 }: {
   student: ScannedStudent;
   onContinue: () => void;
   onStop: () => void;
   onOpenDetails: () => void;
   autoContinue: boolean;
-  timing: Timing;
 }) {
-  const networkMs =
-    timing.serverMs != null ? Math.max(0, timing.totalMs - timing.serverMs) : null;
   return (
     <div className="mx-6 w-full max-w-sm rounded-3xl border border-emerald-400/30 bg-slate-900/90 p-6 text-center shadow-2xl shadow-emerald-500/20 backdrop-blur-md animate-[popIn_0.25s_ease-out]">
       <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 ring-2 ring-emerald-400/40">
@@ -974,20 +1039,80 @@ function SuccessCard({
         Attendance marked
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-3 text-[10px] text-slate-500">
-        <span title="Total round-trip from button to response">
-          total <span className="font-semibold text-slate-300">{timing.totalMs}ms</span>
-        </span>
-        {timing.serverMs != null && (
-          <span title="Backend processing time">
-            server <span className="font-semibold text-slate-300">{timing.serverMs}ms</span>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onStop}
+          className="inline-flex items-center justify-center gap-1.5 rounded-full bg-red-500/20 border border-red-400/30 px-4 py-2 text-sm font-medium text-red-200 transition hover:bg-red-500/30"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" strokeWidth="2.5" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h12v12H6z" />
+          </svg>
+          Stop
+        </button>
+        <button
+          type="button"
+          onClick={onContinue}
+          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-500/40"
+        >
+          {autoContinue ? "Continue" : "Scan next"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function IdentityCard({
+  person,
+  userType,
+  onContinue,
+  onStop,
+  autoContinue,
+}: {
+  person: IdentityPerson;
+  userType: "student" | "lecturer";
+  onContinue: () => void;
+  onStop: () => void;
+  autoContinue: boolean;
+}) {
+  const isVerified = person.status === "active";
+  const roleLabel = userType === "lecturer" ? "Lecturer" : "Student";
+  return (
+    <div className="mx-6 w-full max-w-sm rounded-3xl border border-blue-400/30 bg-slate-900/90 p-6 text-center shadow-2xl shadow-blue-500/20 backdrop-blur-md animate-[popIn_0.25s_ease-out]">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-500/40 to-indigo-500/40 ring-2 ring-white/10">
+        {person.avatar && person.avatar.startsWith("data:image") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={person.avatar} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-lg font-semibold text-white">
+            {initials(person.name.split(" ")[0], person.name.split(" ")[1])}
           </span>
         )}
-        {networkMs != null && (
-          <span title="Network + tunnel time">
-            network <span className="font-semibold text-slate-300">{networkMs}ms</span>
-          </span>
-        )}
+      </div>
+
+      <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-300">
+        {roleLabel}
+      </span>
+      <h3 className="text-lg font-semibold text-white">{person.name}</h3>
+      {person.idValue && (
+        <p className="mt-0.5 text-[12px] font-mono text-slate-400">
+          {person.idLabel}: {person.idValue}
+        </p>
+      )}
+      {(person.department || person.subtitle) && (
+        <p className="mt-2 text-xs text-slate-300">
+          {person.department}
+          {person.subtitle ? ` · ${person.subtitle}` : ""}
+        </p>
+      )}
+
+      <div
+        className={`mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium ${
+          isVerified ? "bg-emerald-500/15 text-emerald-200" : "bg-amber-500/15 text-amber-200"
+        }`}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${isVerified ? "bg-emerald-400" : "bg-amber-400"}`} />
+        {isVerified ? "Identity verified" : `Status: ${person.status}`}
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-2">
@@ -1004,7 +1129,7 @@ function SuccessCard({
         <button
           type="button"
           onClick={onContinue}
-          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:shadow-emerald-500/40"
+          className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:shadow-blue-500/40"
         >
           {autoContinue ? "Continue" : "Scan next"}
         </button>

@@ -39,6 +39,11 @@ export interface StudentProfile {
     dateOfBirth?: string;
     avatar: string;
     universityName: string;
+    // Lecturer-specific fields (present when userType === 'lecturer')
+    lecturerId?: string;
+    specialization?: string;
+    role?: string;
+    title?: string;
   };
   institutionId: string;
 }
@@ -51,6 +56,9 @@ export interface UpdateProfileData {
   dateOfBirth: string;
   department: string;
   year: string;
+  // Optional lecturer fields
+  specialization?: string;
+  title?: string;
 }
 
 export const profileService = {
