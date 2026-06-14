@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell, Icon, StatCard, type NavItem } from "@/components/dashboard";
+import type { TourStep } from "@/lib/tour";
 import QRScannerNew from "@/components/qr/QRScannerNew";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
 import { AdminAttendanceOverview } from "@/components/attendance";
@@ -308,6 +309,75 @@ export default function AdminDashboard() {
     { id: 'settings', name: 'Settings', icon: 'settings' },
   ];
 
+  const adminTourSteps: TourStep[] = [
+    {
+      title: 'Welcome, Admin 👋',
+      description:
+        "Let's walk through your institution dashboard in about a minute. You can skip anytime.",
+    },
+    {
+      selector: '[data-tour="profile-card"]',
+      title: 'This is you',
+      description: 'Your name and institution appear here so you always know you are on the right account.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-overview"]',
+      title: 'Your Overview',
+      description: 'Your command centre — key stats, recent activity and quick actions for your institution.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-qr-scanner"]',
+      title: 'QR Scanner',
+      description: 'Scan student or lecturer QR codes for attendance and identity verification.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-students"]',
+      title: 'Student Management',
+      description: 'Create, activate and manage student accounts across your institution.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-lecturers"]',
+      title: 'Lecturer Management',
+      description: 'Onboard lecturers, assign them to courses and manage their access.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-courses"]',
+      title: 'Course Management',
+      description: 'Create courses, assign lecturers and organise your academic catalogue.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-attendance"]',
+      title: 'Attendance Management',
+      description: 'View attendance across all courses and download institution-wide reports.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-reports"]',
+      title: 'Reports',
+      description: 'Analytics on enrolment, attendance and academic performance at a glance.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-settings"]',
+      title: 'Configure your preferences',
+      description: 'Set grading scales, institution details and other system-wide settings.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="help"]',
+      title: "You're all set! 🎉",
+      description: 'Need a refresher later? Click this help button anytime to replay the tour.',
+      side: 'bottom',
+      align: 'end',
+    },
+  ];
+
   const quickActions = [
     { id: 'add-student', name: 'Add Student', icon: '🎓', color: 'from-blue-600 to-indigo-600' },
     { id: 'add-lecturer', name: 'Add Lecturer', icon: '👨‍🏫', color: 'from-green-600 to-emerald-600' },
@@ -408,6 +478,7 @@ export default function AdminDashboard() {
             </div>
           ) : null
         }
+        tourSteps={adminTourSteps}
       >
           {activeSection === 'overview' && (
             <div className="space-y-6">

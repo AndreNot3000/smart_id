@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell, StatCard, Icon, type NavItem } from "@/components/dashboard";
+import type { TourStep } from "@/lib/tour";
 import StudentQRDisplay from "@/components/qr/StudentQRDisplay";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
 import StudentProfilePage from "@/components/profile/StudentProfilePage";
@@ -1071,6 +1072,69 @@ export default function TestDashboard() {
     payments: 'Payments',
   };
 
+  const studentTourSteps: TourStep[] = [
+    {
+      title: 'Welcome to UniSmart 👋',
+      description:
+        "Let's take a quick 60-second tour of your student dashboard so you know where everything lives. You can skip anytime.",
+    },
+    {
+      selector: '[data-tour="profile-card"]',
+      title: 'This is you',
+      description: 'Your name, photo and student ID appear here so you always know you are signed into the right account.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-dashboard"]',
+      title: 'Your Overview',
+      description: 'Your home base — GPA, attendance, wallet balance and a feed of what is new across your courses.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-qr-code"]',
+      title: 'My QR Code',
+      description: 'Show this code to your lecturer to mark attendance instantly. It refreshes for security.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-attendance"]',
+      title: 'My Attendance',
+      description: 'Track every class you have attended and spot any sessions you missed.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-courses"]',
+      title: 'My Courses',
+      description: 'See enrolled courses, assignments, announcements and learning materials from your lecturers.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-grades"]',
+      title: 'Grades',
+      description: 'View your scores and live CGPA as lecturers publish results.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-payments"]',
+      title: 'Payments & Wallet',
+      description: 'Fund your wallet and settle fees securely without leaving the dashboard.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-profile"]',
+      title: 'Manage your account',
+      description: 'Update your photo, contact details and personal information here.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="help"]',
+      title: "You're all set! 🎉",
+      description: 'Need a refresher later? Click this help button anytime to replay the tour.',
+      side: 'bottom',
+      align: 'end',
+    },
+  ];
+
   // Calculate academic stats
   const academicStats = studentData ? {
     gpa: gpaData?.cgpa ?? null,
@@ -1151,6 +1215,7 @@ export default function TestDashboard() {
         avatar: displayData.avatar,
         initials: displayData.initials,
       }}
+      tourSteps={studentTourSteps}
     >
       <>
           {activeSection === 'dashboard' && (

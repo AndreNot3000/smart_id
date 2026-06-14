@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Icon, { type IconName } from "./Icon";
+import { runTour, hasSeenTour, markTourSeen, type TourStep } from "@/lib/tour";
 
 export interface NavItem {
   id: string;
@@ -28,6 +29,8 @@ export interface DashboardShellProps {
   pageSubtitle?: string;
   topbarActions?: ReactNode;
   children: ReactNode;
+  /** Steps for the guided onboarding tour. When provided, a help button shows. */
+  tourSteps?: TourStep[];
 }
 
 /**
@@ -47,6 +50,7 @@ export default function DashboardShell({
   pageSubtitle,
   topbarActions,
   children,
+  tourSteps,
 }: DashboardShellProps) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -57,6 +61,43 @@ export default function DashboardShell({
     const stored = window.localStorage.getItem("dashboard:sidebar-collapsed");
     if (stored === "true") setSidebarCollapsed(true);
   }, []);
+
+  // Launch the guided tour. On small screens the sidebar is off-canvas, so we
+  // open it first and expand the rail so nav steps are actually visible.
+  const startTour = () => {
+    if (!tourSteps?.length) return;
+    const isDesktop =
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 1024px)").matches;
+    if (isDesktop) {
+      setSidebarCollapsed(false);
+    } else {
+      setSidebarOpen(true);
+    }
+    // Give the layout a tick to settle (sidebar slide-in) before spotlighting.
+    window.setTimeout(() => {
+      runTour(tourSteps, { onClose: () => setSidebarOpen(false) });
+    }, 320);
+  };
+
+  // Auto-start once per role on a user's first visit.
+  //
+  // NOTE: we depend only on `role` (stable) — NOT on `tourSteps`, which is a
+  // fresh array on every render and would otherwise cancel/reschedule the
+  // timer endlessly. We also defer `markTourSeen` until the timer actually
+  // fires, so React Strict Mode's mount→unmount→mount cycle (which clears the
+  // first timer) still launches the tour on the second mount.
+  useEffect(() => {
+    if (!tourSteps?.length) return;
+    if (hasSeenTour(role)) return;
+    const t = window.setTimeout(() => {
+      if (hasSeenTour(role)) return;
+      markTourSeen(role);
+      startTour();
+    }, 800);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const toggleCollapsed = () => {
     setSidebarCollapsed((prev) => {
@@ -93,7 +134,7 @@ export default function DashboardShell({
         } lg:translate-x-0`}
       >
         <div className={`flex items-center justify-between ${sidebarCollapsed ? "px-2" : "px-4"} h-16 border-b border-[var(--border-subtle)]`}>
-          <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0" data-tour="brand">
             <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0"
                  style={{ background: "var(--accent)" }}>
               <span className="text-white font-bold text-[11px] tracking-wider">ID</span>
@@ -120,7 +161,7 @@ export default function DashboardShell({
         </div>
 
         {!sidebarCollapsed && (
-          <div className="px-4 py-4 border-b border-[var(--border-subtle)]">
+          <div className="px-4 py-4 border-b border-[var(--border-subtle)]" data-tour="profile-card">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-full overflow-hidden flex items-center justify-center shrink-0"
                    style={{ background: "var(--surface-2)" }}>
@@ -140,7 +181,7 @@ export default function DashboardShell({
           </div>
         )}
 
-        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? "px-2" : "px-3"} py-4`}>
+        <nav className={`flex-1 overflow-y-auto ${sidebarCollapsed ? "px-2" : "px-3"} py-4`} data-tour="nav">
           <ul className="space-y-1">
             {navItems.map((item) => {
               const active = activeSection === item.id;
@@ -150,6 +191,7 @@ export default function DashboardShell({
                     type="button"
                     title={sidebarCollapsed ? item.name : undefined}
                     data-active={active}
+                    data-tour={`nav-${item.id}`}
                     onClick={() => {
                       onSelectSection(item.id);
                       setSidebarOpen(false);
@@ -216,6 +258,19 @@ export default function DashboardShell({
 
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {topbarActions}
+              {tourSteps?.length ? (
+                <button
+                  type="button"
+                  onClick={startTour}
+                  data-tour="help"
+                  title="Take a quick tour"
+                  aria-label="Take a quick tour"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+                  style={{ background: "var(--surface-2)", border: "1px solid var(--border-default)" }}
+                >
+                  <Icon name="help" size={18} />
+                </button>
+              ) : null}
               <div className="hidden md:flex flex-col items-end leading-tight">
                 <p className="text-[var(--text-primary)] text-sm font-medium">{user.name.split(" ")[0]}</p>
                 {user.secondary && (
@@ -223,6 +278,7 @@ export default function DashboardShell({
                 )}
               </div>
               <div className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center shrink-0"
+                   data-tour="topbar-user"
                    style={{ background: "var(--surface-2)", border: "1px solid var(--border-default)" }}>
                 {user.avatar?.startsWith("data:image") ? (
                   <img src={user.avatar} alt="" className="h-full w-full object-cover" />

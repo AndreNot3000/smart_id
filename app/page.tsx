@@ -1,10 +1,72 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import CursorFX from "@/components/landing/CursorFX";
+
+const FEATURES = [
+  {
+    title: "Digital Campus ID",
+    desc: "Replace plastic cards with a signed JWT-backed QR code that lives on every student's phone.",
+    accent: "from-blue-500 to-indigo-500",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875A.875.875 0 014.625 4h14.75a.875.875 0 01.875.875v14.25a.875.875 0 01-.875.875H4.625a.875.875 0 01-.875-.875V4.875zM8.25 8.25h2.25v2.25H8.25V8.25zm5.25 0h2.25v2.25h-2.25V8.25zM8.25 13.5h2.25v2.25H8.25V13.5zm5.25 0h2.25v2.25h-2.25V13.5z" />
+    ),
+    tag: "QR · NFC-ready",
+  },
+  {
+    title: "QR Attendance",
+    desc: "Lecturers scan students at the start of class. Attendance is stored, indexed and queryable by date or course.",
+    accent: "from-emerald-500 to-teal-500",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m13.5 4.5L16.5 3M3 16.5L7.5 21m13.5-4.5L16.5 21M7.5 12h9" />
+    ),
+    tag: "Real-time",
+  },
+  {
+    title: "Smart Wallet",
+    desc: "Naira wallet with Paystack-powered top-ups for tuition, meals and campus services. Indexed transaction history.",
+    accent: "from-amber-500 to-orange-500",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+    ),
+    tag: "Paystack",
+  },
+  {
+    title: "Class Schedules",
+    desc: "Lecturers publish timetables. Students see their week live with polling updates &mdash; cancel, restore or announce changes in seconds.",
+    accent: "from-purple-500 to-pink-500",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+    ),
+    tag: "Live updates",
+  },
+  {
+    title: "Coursework &amp; Quizzes",
+    desc: "Course materials, assignments with deadline reminders, online quizzes with timer, tab-switch tracking and plagiarism detection.",
+    accent: "from-rose-500 to-red-500",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+    ),
+    tag: "Anti-cheat",
+  },
+  {
+    title: "Multi-tenant Admin",
+    desc: "One deployment, many institutions. Each university gets isolated data, its own admins, and a unique institution code.",
+    accent: "from-cyan-500 to-blue-500",
+    icon: (
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+    ),
+    tag: "SaaS-native",
+  },
+];
 
 export default function Home() {
   const [navScrolled, setNavScrolled] = useState(false);
+  const [wallet, setWallet] = useState(0);
+  const [activeFeature, setActiveFeature] = useState(0);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const featureTrackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observerOptions = {
@@ -29,8 +91,82 @@ export default function Home() {
     };
   }, []);
 
+  // Count the wallet balance up on mount for an eye-catching reveal.
+  useEffect(() => {
+    const target = 24500;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setWallet(target);
+      return;
+    }
+    const duration = 1700;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setWallet(Math.round(target * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Cursor-driven 3D parallax tilt + glare for the hero ID card.
+  const handleTilt = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = stageRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    el.style.setProperty("--ry", `${(px - 0.5) * 26}deg`);
+    el.style.setProperty("--rx", `${(0.5 - py) * 22}deg`);
+    el.style.setProperty("--mx", `${px * 100}%`);
+    el.style.setProperty("--my", `${py * 100}%`);
+  };
+
+  const resetTilt = () => {
+    const el = stageRef.current;
+    if (!el) return;
+    el.style.setProperty("--ry", "0deg");
+    el.style.setProperty("--rx", "0deg");
+    el.style.setProperty("--mx", "50%");
+    el.style.setProperty("--my", "50%");
+  };
+
+  // Track the centred card in the mobile features carousel.
+  const handleFeatureScroll = () => {
+    const track = featureTrackRef.current;
+    if (!track) return;
+    const center = track.scrollLeft + track.clientWidth / 2;
+    let nearest = 0;
+    let min = Infinity;
+    Array.from(track.children).forEach((child, i) => {
+      const el = child as HTMLElement;
+      const c = el.offsetLeft + el.offsetWidth / 2;
+      const d = Math.abs(c - center);
+      if (d < min) {
+        min = d;
+        nearest = i;
+      }
+    });
+    setActiveFeature(nearest);
+  };
+
+  const scrollToFeature = (i: number) => {
+    const track = featureTrackRef.current;
+    if (!track) return;
+    const el = track.children[i] as HTMLElement | undefined;
+    if (el) track.scrollTo({ left: el.offsetLeft - (track.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#070d1c] text-slate-100">
+      {/* Interactive cursor effect (desktop / fine-pointer only) */}
+      <CursorFX />
+
       {/* Decorative background */}
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-grid-academic opacity-[0.05]" />
@@ -190,24 +326,40 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Hero visual: floating ID card */}
+          {/* Hero visual: interactive 3D ID card */}
           <div className="scroll-reveal relative lg:col-span-5">
-            <div className="relative mx-auto h-[460px] w-full max-w-[420px]">
-              <div className="hero-scene">
-                {/* Floating campus icons */}
-                <div className="hero-float-icon hero-float-1">📚</div>
-                <div className="hero-float-icon hero-float-2">🎓</div>
-                <div className="hero-float-icon hero-float-3">🏛️</div>
-                <div className="hero-float-icon hero-float-4">✏️</div>
+            <div
+              ref={stageRef}
+              onMouseMove={handleTilt}
+              onMouseLeave={resetTilt}
+              className="hero-stage relative mx-auto h-[480px] w-full max-w-[420px]"
+            >
+              {/* Ambient aura + orbiting rings (replaces the emoji clutter) */}
+              <div className="hero-aura" />
+              <div className="hero-orbit hero-orbit-1">
+                <span className="hero-orbit-dot" />
+              </div>
+              <div className="hero-orbit hero-orbit-2">
+                <span className="hero-orbit-dot hero-orbit-dot-amber" />
+              </div>
+              <div className="hero-orbit hero-orbit-3">
+                <span className="hero-orbit-dot hero-orbit-dot-emerald" />
+              </div>
 
-                {/* The ID Card */}
+              {/* Tilt wrapper reacts to cursor position via CSS variables */}
+              <div className="hero-tilt">
                 <div className="hero-id-card">
-                  <div className="id-card-glow" />
                   <div className="id-card-inner relative">
+                    {/* Holographic sheen + cursor glare + scan beam */}
+                    <div className="id-card-sheen" />
+                    <div className="id-card-glare" />
+                    <div className="id-card-scan" />
+
                     <div className="id-card-header">
                       <div className="id-card-logo">CI</div>
                       <div className="id-card-title">CAMPUS · ID</div>
-                      <div className="ml-auto rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[8px] font-bold tracking-wider text-emerald-300">
+                      <div className="ml-auto inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[8px] font-bold tracking-wider text-emerald-300">
+                        <span className="h-1 w-1 rounded-full bg-emerald-400 id-card-live" />
                         ACTIVE
                       </div>
                     </div>
@@ -225,15 +377,12 @@ export default function Home() {
                         <div className="text-[8px] uppercase tracking-wider text-slate-500">Student ID</div>
                         <div className="text-[11px] font-mono font-semibold text-slate-200">CIU/24/CSC/0142</div>
                       </div>
-                      <div className="grid grid-cols-3 gap-[2px]">
-                        {[...Array(9)].map((_, i) => (
-                          <div
-                            key={i}
-                            className={`h-1.5 w-1.5 rounded-[1px] ${
-                              [0, 2, 4, 5, 7, 8].includes(i) ? "bg-slate-300" : "bg-transparent"
-                            }`}
-                          />
-                        ))}
+                      {/* Gold smartcard chip — reads as a real ID card */}
+                      <div className="id-card-chip" aria-hidden>
+                        <span />
+                        <span />
+                        <span />
+                        <span />
                       </div>
                     </div>
 
@@ -242,12 +391,20 @@ export default function Home() {
                         <div key={i} />
                       ))}
                     </div>
+
+                    {/* VERIFIED stamp flashes in after each scan pass */}
+                    <div className="id-card-verified">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      VERIFIED
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Stat floating cards */}
-              <div className="absolute -left-2 bottom-8 hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl sm:block">
+              {/* Floating glass stat chips with depth + staggered entrance */}
+              <div className="hero-chip hero-chip-attendance hidden sm:block">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20">
                     <svg className="h-4 w-4 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -261,14 +418,16 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="absolute -right-2 top-12 hidden rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl sm:block">
+              <div className="hero-chip hero-chip-wallet hidden sm:block">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20">
-                    <span className="text-amber-300 font-bold">₦</span>
+                    <span className="font-bold text-amber-300">₦</span>
                   </div>
                   <div>
                     <div className="text-xs text-slate-400">Wallet balance</div>
-                    <div className="text-sm font-semibold text-white">₦ 24,500.00</div>
+                    <div className="text-sm font-semibold tabular-nums text-white">
+                      ₦ {wallet.toLocaleString()}.00
+                    </div>
                   </div>
                 </div>
               </div>
@@ -340,75 +499,33 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                title: "Digital Campus ID",
-                desc: "Replace plastic cards with a signed JWT-backed QR code that lives on every student's phone.",
-                accent: "from-blue-500 to-indigo-500",
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875A.875.875 0 014.625 4h14.75a.875.875 0 01.875.875v14.25a.875.875 0 01-.875.875H4.625a.875.875 0 01-.875-.875V4.875zM8.25 8.25h2.25v2.25H8.25V8.25zm5.25 0h2.25v2.25h-2.25V8.25zM8.25 13.5h2.25v2.25H8.25V13.5zm5.25 0h2.25v2.25h-2.25V13.5z" />
-                ),
-                tag: "QR · NFC-ready",
-              },
-              {
-                title: "QR Attendance",
-                desc: "Lecturers scan students at the start of class. Attendance is stored, indexed and queryable by date or course.",
-                accent: "from-emerald-500 to-teal-500",
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m13.5 4.5L16.5 3M3 16.5L7.5 21m13.5-4.5L16.5 21M7.5 12h9" />
-                ),
-                tag: "Real-time",
-              },
-              {
-                title: "Smart Wallet",
-                desc: "Naira wallet with Paystack-powered top-ups for tuition, meals and campus services. Indexed transaction history.",
-                accent: "from-amber-500 to-orange-500",
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-                ),
-                tag: "Paystack",
-              },
-              {
-                title: "Class Schedules",
-                desc: "Lecturers publish timetables. Students see their week live with polling updates &mdash; cancel, restore or announce changes in seconds.",
-                accent: "from-purple-500 to-pink-500",
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                ),
-                tag: "Live updates",
-              },
-              {
-                title: "Coursework &amp; Quizzes",
-                desc: "Course materials, assignments with deadline reminders, online quizzes with timer, tab-switch tracking and plagiarism detection.",
-                accent: "from-rose-500 to-red-500",
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                ),
-                tag: "Anti-cheat",
-              },
-              {
-                title: "Multi-tenant Admin",
-                desc: "One deployment, many institutions. Each university gets isolated data, its own admins, and a unique institution code.",
-                accent: "from-cyan-500 to-blue-500",
-                icon: (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
-                ),
-                tag: "SaaS-native",
-              },
-            ].map((f) => (
+          {/* Mobile: snap carousel · Desktop: grid */}
+          <div
+            ref={featureTrackRef}
+            onScroll={handleFeatureScroll}
+            className="scroll-reveal no-scrollbar mt-12 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-6 px-6 pb-2 md:mt-16 md:grid md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 lg:grid-cols-3"
+          >
+            {FEATURES.map((f, i) => (
               <article
                 key={f.title}
-                className="scroll-reveal group relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-7 backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.06]"
+                className={`group relative w-[82%] shrink-0 snap-center overflow-hidden rounded-2xl border bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-7 backdrop-blur-sm transition-all duration-500 ease-out hover:border-white/20 hover:bg-white/[0.06] sm:w-[58%] md:w-auto md:scale-100 md:border-white/10 md:opacity-100 ${
+                  activeFeature === i
+                    ? "scale-100 border-white/25 opacity-100 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)]"
+                    : "scale-[0.9] border-white/10 opacity-50"
+                }`}
               >
                 <div
                   aria-hidden
-                  className={`absolute -inset-px -z-10 rounded-2xl bg-gradient-to-br ${f.accent} opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-20`}
+                  className={`absolute -inset-px -z-10 rounded-2xl bg-gradient-to-br ${f.accent} opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-20 ${
+                    activeFeature === i ? "opacity-20 md:opacity-0" : ""
+                  }`}
                 />
 
                 <div className="flex items-start justify-between">
                   <div
-                    className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${f.accent} shadow-lg`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${f.accent} shadow-lg transition-transform duration-500 group-hover:scale-110 ${
+                      activeFeature === i ? "scale-110 md:scale-100" : ""
+                    }`}
                   >
                     <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
                       {f.icon}
@@ -432,6 +549,23 @@ export default function Home() {
                   </svg>
                 </div>
               </article>
+            ))}
+          </div>
+
+          {/* Carousel pagination (mobile only) */}
+          <div className="mt-6 flex items-center justify-center gap-2 md:hidden">
+            {FEATURES.map((f, i) => (
+              <button
+                key={f.title}
+                type="button"
+                onClick={() => scrollToFeature(i)}
+                aria-label={`Go to ${f.title.replace(/&amp;/g, "&")}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  activeFeature === i
+                    ? "w-6 bg-amber-400"
+                    : "w-1.5 bg-white/20 hover:bg-white/40"
+                }`}
+              />
             ))}
           </div>
         </div>

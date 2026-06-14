@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import QRCodeSVG from "react-qr-code";
 import { qrService } from "@/lib/qrService";
 import { DashboardShell, Icon, StatCard, type NavItem } from "@/components/dashboard";
+import type { TourStep } from "@/lib/tour";
 import { LecturerProfilePage } from "@/components/profile";
 import QRScannerNew from "@/components/qr/QRScannerNew";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
@@ -530,6 +531,87 @@ export default function LecturerDashboard() {
     { id: 'qr-code', name: 'My QR Code', icon: 'qrCode' },
     { id: 'profile', name: 'My Profile', icon: 'user' },
     { id: 'settings', name: 'Settings', icon: 'settings' },
+  ];
+
+  const lecturerTourSteps: TourStep[] = [
+    {
+      title: 'Welcome, Lecturer 👋',
+      description:
+        "Let's walk through your teaching dashboard in about a minute. You can skip anytime.",
+    },
+    {
+      selector: '[data-tour="profile-card"]',
+      title: 'This is you',
+      description: 'Your name, title and department appear here so you always know you are on the right account.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-overview"]',
+      title: 'Your Overview',
+      description: 'Your home base — upcoming classes, recent activity and quick actions for the day.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-qr-scanner"]',
+      title: 'QR Scanner',
+      description: 'Scan student QR codes to mark attendance in seconds. Point and scan — no centering needed.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-attendance"]',
+      title: 'Attendance Management',
+      description: 'View sessions, track who attended and download attendance reports for your courses.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-courses"]',
+      title: 'My Courses',
+      description: 'Manage course content, assignments, announcements and materials for each class you teach.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-grades"]',
+      title: 'Grades & Assessment',
+      description: 'Enter scores, set grade weights and publish results to students in real time.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-student-records"]',
+      title: 'Student Records',
+      description: 'Look up students by name or ID, view profiles and track their academic progress.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-reports"]',
+      title: 'Reports & Analytics',
+      description: 'See attendance trends, grade distributions and performance insights across your courses.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-qr-code"]',
+      title: 'My QR Code',
+      description: 'Your personal QR for identity verification. Admins can scan it to confirm who you are.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-profile"]',
+      title: 'Manage your account',
+      description: 'Update your photo, contact details and professional information here.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="nav-settings"]',
+      title: 'Configure your preferences',
+      description: 'Adjust notification and display settings to suit how you work.',
+      side: 'right',
+    },
+    {
+      selector: '[data-tour="help"]',
+      title: "You're all set! 🎉",
+      description: 'Need a refresher later? Click this help button anytime to replay the tour.',
+      side: 'bottom',
+      align: 'end',
+    },
   ];
 
   // Fetch students by department
@@ -1758,6 +1840,7 @@ export default function LecturerDashboard() {
             <span className="hidden sm:inline">Show ID</span>
           </button>
         }
+        tourSteps={lecturerTourSteps}
       >
           {activeSection === 'overview' && (
             <div className="space-y-6">
