@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getApiUrl, API_BASE_OVERRIDE_KEY } from "@/lib/config";
+
+interface InstitutionOption {
+  id: string;
+  name: string;
+  code: string;
+}
 
 // First Login Password Change Modal Component
 function FirstLoginModal({ isOpen, onClose, onPasswordChange, loading, fieldErrors, setFieldErrors }: {
@@ -209,22 +215,55 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     emailOrId: "",
     password: "",
-    userType: "student"
+    userType: "student",
+    institutionCode: ""
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
   const [firstLoginData, setFirstLoginData] = useState<any>(null);
+  const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
   const [fieldErrors, setFieldErrors] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
 
+  // Load the list of institutions for the selector. Emails are unique only
+  // within an institution, so the backend needs to know which one to sign into.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(getApiUrl("/api/auth/institutions"));
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.institutions)) {
+          setInstitutions(data.institutions);
+        }
+      } catch {
+        // Non-fatal: the field still accepts a typed code as a fallback.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // An email login requires an institution; an ID login (contains no "@") does not.
+  const isEmailLogin = formData.emailOrId.includes("@");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Email logins must be tied to an institution (emails are unique per-tenant).
+    if (formData.emailOrId.includes("@") && !formData.institutionCode) {
+      setError("Please select your institution to sign in with an email address.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -237,7 +276,8 @@ export default function LoginPage() {
         body: JSON.stringify({
           email: formData.emailOrId,
           password: formData.password,
-          userType: formData.userType
+          userType: formData.userType,
+          institutionCode: formData.institutionCode || undefined
         }),
       });
 
@@ -398,6 +438,43 @@ export default function LoginPage() {
                   <option value="lecturer">Lecturer</option>
                   <option value="admin">Admin</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Institution {isEmailLogin && <span className="text-red-400">*</span>}
+                </label>
+                {institutions.length > 0 ? (
+                  <select
+                    value={formData.institutionCode}
+                    onChange={(e) => {
+                      setFormData({ ...formData, institutionCode: e.target.value });
+                      setError("");
+                    }}
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select your institution</option>
+                    {institutions.map((inst) => (
+                      <option key={inst.id} value={inst.code}>
+                        {inst.name} ({inst.code})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.institutionCode}
+                    onChange={(e) => {
+                      setFormData({ ...formData, institutionCode: e.target.value.toUpperCase() });
+                      setError("");
+                    }}
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Institution code (e.g. EWA)"
+                  />
+                )}
+                <p className="mt-1 text-xs text-slate-500">
+                  Signing in with your ID instead of email? You can leave this blank.
+                </p>
               </div>
 
               <div>

@@ -1114,7 +1114,8 @@ function UserCreationModal({
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [emailInUseElsewhere, setEmailInUseElsewhere] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
   const [success, setSuccess] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -1139,10 +1140,54 @@ function UserCreationModal({
         specialization: ''
       });
       setError('');
-      setEmailInUseElsewhere(false);
+      setEmailError('');
+      setEmailStatus('idle');
       setSuccess(false);
     }
   }, [isOpen, userType]);
+
+  // Live email-availability check (debounced). Emails are unique per-institution
+  // and across all roles, so we warn the admin before they submit.
+  useEffect(() => {
+    const email = formData.email.trim();
+    const looksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!looksValid) {
+      setEmailStatus('idle');
+      setEmailError('');
+      return;
+    }
+
+    let cancelled = false;
+    setEmailStatus('checking');
+    const t = setTimeout(async () => {
+      try {
+        const token = sessionStorage.getItem('accessToken');
+        const res = await fetch(
+          getApiUrl(`/api/admin/check-email?email=${encodeURIComponent(email)}`),
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.available) {
+          setEmailStatus('available');
+          setEmailError('');
+        } else if (data.valid) {
+          setEmailStatus('taken');
+          setEmailError(data.message || 'This email is already in use at your institution.');
+        } else {
+          setEmailStatus('idle');
+          setEmailError('');
+        }
+      } catch {
+        if (!cancelled) setEmailStatus('idle');
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [formData.email]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -1150,13 +1195,20 @@ function UserCreationModal({
       [e.target.name]: e.target.value
     });
     setError('');
-    setEmailInUseElsewhere(false);
+    if (e.target.name === 'email') setEmailError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setEmailInUseElsewhere(false);
+    setEmailError('');
+
+    // Block submit if we already know the email is taken.
+    if (emailStatus === 'taken') {
+      setEmailError('This email is already in use at your institution. Please use a different one.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -1197,11 +1249,14 @@ function UserCreationModal({
       const data = await response.json();
 
       if (!response.ok) {
-        setEmailInUseElsewhere(data.code === 'EMAIL_EXISTS_OTHER_INSTITUTION');
+        // Surface email clashes inline on the field; everything else as a banner.
+        if (data.field === 'email' || data.code === 'EMAIL_EXISTS_SAME_INSTITUTION') {
+          setEmailStatus('taken');
+          setEmailError(data.error || data.message || 'This email is already in use at your institution.');
+          return;
+        }
         throw new Error(data.error || data.message || `Failed to create ${userType} account`);
       }
-
-      setEmailInUseElsewhere(false);
 
       setSuccess(true);
       setTimeout(() => {
@@ -1245,26 +1300,8 @@ function UserCreationModal({
         ) : (
           <>
             {error && (
-              <div
-                className={`mb-4 p-3 rounded-lg border ${
-                  emailInUseElsewhere
-                    ? 'bg-amber-900/25 border-amber-600/50'
-                    : 'bg-red-900/30 border-red-700'
-                }`}
-              >
-                {emailInUseElsewhere && (
-                  <p className="text-amber-300 text-xs font-semibold uppercase tracking-wide mb-1">
-                    Email used at another university
-                  </p>
-                )}
-                <p className={`text-sm ${emailInUseElsewhere ? 'text-amber-100' : 'text-red-400'}`}>
-                  {error}
-                </p>
-                {emailInUseElsewhere && (
-                  <p className="text-amber-200/80 text-xs mt-2">
-                    Ask this {userType} to provide a different email address for your institution, or confirm they have not already been registered at another university with this email.
-                  </p>
-                )}
+              <div className="mb-4 p-3 rounded-lg border bg-red-900/30 border-red-700">
+                <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
 
@@ -1310,9 +1347,28 @@ function UserCreationModal({
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-invalid={emailStatus === 'taken'}
+                  className={`w-full px-3 py-2 bg-slate-700 border rounded-lg text-white focus:outline-none focus:ring-2 ${
+                    emailStatus === 'taken'
+                      ? 'border-red-500 focus:ring-red-500'
+                      : emailStatus === 'available'
+                        ? 'border-green-500 focus:ring-green-500'
+                        : 'border-slate-600 focus:ring-blue-500'
+                  }`}
                   placeholder={userType === 'student' ? 'john.doe@university.edu' : 'prof.doe@university.edu'}
                 />
+                {emailStatus === 'checking' && (
+                  <p className="mt-1 text-xs text-slate-400">Checking availability…</p>
+                )}
+                {emailStatus === 'available' && (
+                  <p className="mt-1 text-xs text-green-400">✓ Email is available</p>
+                )}
+                {emailStatus === 'taken' && emailError && (
+                  <p className="mt-1 text-xs text-red-400">{emailError}</p>
+                )}
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Each email can be used once per institution (across students, lecturers and admins).
+                </p>
               </div>
 
               <div>
@@ -1419,8 +1475,8 @@ function UserCreationModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors disabled:opacity-50"
+                  disabled={isLoading || emailStatus === 'taken' || emailStatus === 'checking'}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <div className="flex items-center justify-center">
