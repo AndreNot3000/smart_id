@@ -282,7 +282,7 @@ export default function LoginPage() {
     mfaToken?: string;
     message?: string;
   }) => {
-    if (data.requiresMfa) {
+    if (data.requiresMfa || (data.mfaToken && !data.accessToken)) {
       if (!data.mfaToken) {
         throw new Error(
           data.message ||
@@ -315,7 +315,7 @@ export default function LoginPage() {
     sessionStorage.setItem("refreshToken", data.refreshToken);
     sessionStorage.setItem("user", JSON.stringify(data.user));
 
-    if (data.user.isFirstLogin) {
+    if (data.user?.isFirstLogin) {
       setFirstLoginData(data);
       setShowFirstLoginModal(true);
       return;
