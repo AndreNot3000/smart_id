@@ -274,6 +274,56 @@ export default function LoginPage() {
   // An email login requires an institution; an ID login (contains no "@") does not.
   const isEmailLogin = formData.emailOrId.includes("@");
 
+  const completeLogin = (data: {
+    accessToken?: string;
+    refreshToken?: string;
+    user?: { userType?: string; isFirstLogin?: boolean };
+    requiresMfa?: boolean;
+    mfaToken?: string;
+    message?: string;
+  }) => {
+    if (data.requiresMfa) {
+      if (!data.mfaToken) {
+        throw new Error(
+          data.message ||
+            "Multi-factor authentication is required, but the server did not return a verification session. Please try again.",
+        );
+      }
+      setMfaRequired(true);
+      setMfaToken(data.mfaToken);
+      setMfaCode("");
+      return;
+    }
+
+    if (!data.accessToken || !data.refreshToken || !data.user?.userType) {
+      throw new Error(
+        "Login succeeded but the server returned an incomplete response. Try a hard refresh (Ctrl+F5) or contact support if this continues.",
+      );
+    }
+
+    setMfaRequired(false);
+    setMfaToken(null);
+    setMfaCode("");
+
+    const apiOverride = localStorage.getItem(API_BASE_OVERRIDE_KEY);
+    localStorage.clear();
+    if (apiOverride) {
+      localStorage.setItem(API_BASE_OVERRIDE_KEY, apiOverride);
+    }
+
+    sessionStorage.setItem("accessToken", data.accessToken);
+    sessionStorage.setItem("refreshToken", data.refreshToken);
+    sessionStorage.setItem("user", JSON.stringify(data.user));
+
+    if (data.user.isFirstLogin) {
+      setFirstLoginData(data);
+      setShowFirstLoginModal(true);
+      return;
+    }
+
+    redirectToDashboard(data.user.userType);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -333,37 +383,7 @@ export default function LoginPage() {
         throw new Error(data.error || data.message || "Login failed");
       }
 
-      if (data.requiresMfa && data.mfaToken) {
-        setMfaRequired(true);
-        setMfaToken(data.mfaToken);
-        setLoading(false);
-        return;
-      }
-
-      // Clear any existing localStorage data to prevent conflicts,
-      // but preserve the runtime API base override so mobile devices don't
-      // lose their tunnel URL after logging in.
-      const apiOverride = localStorage.getItem(API_BASE_OVERRIDE_KEY);
-      localStorage.clear();
-      if (apiOverride) {
-        localStorage.setItem(API_BASE_OVERRIDE_KEY, apiOverride);
-      }
-
-      // Store tokens and user data in sessionStorage (tab-specific)
-      sessionStorage.setItem("accessToken", data.accessToken);
-      sessionStorage.setItem("refreshToken", data.refreshToken);
-      sessionStorage.setItem("user", JSON.stringify(data.user));
-
-      // Check if this is first login
-      if (data.user.isFirstLogin) {
-        setFirstLoginData(data);
-        setShowFirstLoginModal(true);
-        setLoading(false);
-        return;
-      }
-
-      // Redirect based on user type
-      redirectToDashboard(data.user.userType);
+      completeLogin(data);
     } catch (err: any) {
       setError(err.message || "An error occurred during login");
     } finally {
@@ -395,18 +415,7 @@ export default function LoginPage() {
         throw new Error(data.error || data.message || "Failed to verify MFA");
       }
 
-      const apiOverride = localStorage.getItem(API_BASE_OVERRIDE_KEY);
-      localStorage.clear();
-      if (apiOverride) localStorage.setItem(API_BASE_OVERRIDE_KEY, apiOverride);
-
-      sessionStorage.setItem("accessToken", data.accessToken);
-      sessionStorage.setItem("refreshToken", data.refreshToken);
-      sessionStorage.setItem("user", JSON.stringify(data.user));
-
-      setMfaRequired(false);
-      setMfaToken(null);
-      setMfaCode("");
-      redirectToDashboard(data.user.userType);
+      completeLogin(data);
     } catch (err: any) {
       setError(err.message || "Invalid authentication code");
     } finally {
