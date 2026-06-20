@@ -5,10 +5,18 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/config";
 
+function formatCountdown(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  if (m > 0) return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${s}s`;
+}
+
 export default function VerifyOTPPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [success, setSuccess] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
   const [email, setEmail] = useState('');
@@ -46,6 +54,14 @@ export default function VerifyOTPPage() {
 
     return () => clearInterval(timer);
   }, [router]);
+
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const id = setInterval(() => {
+      setLockoutSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lockoutSeconds]);
 
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return; // Prevent multiple characters
@@ -95,6 +111,9 @@ export default function VerifyOTPPage() {
       console.log('Response data:', data);
 
       if (!response.ok) {
+        if (response.status === 429 && typeof data.retryAfter === 'number' && data.retryAfter > 0) {
+          setLockoutSeconds(data.retryAfter);
+        }
         throw new Error(data.error || data.message || 'Verification failed');
       }
 
@@ -164,7 +183,7 @@ export default function VerifyOTPPage() {
             </div>
             <span className="text-2xl font-bold text-white">Campus ID</span>
           </Link>
-        </div>  b
+        </div>  
 
         {/* Main Card */}
         <div className="card-hover bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50">
@@ -224,7 +243,15 @@ export default function VerifyOTPPage() {
           )}
 
           {/* Error Message */}
-          {error && !success && (
+          {lockoutSeconds > 0 && !success && (
+            <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg">
+              <p className="text-amber-400 text-sm text-center">
+                Too many incorrect attempts. Try again in {formatCountdown(lockoutSeconds)} or request a new code.
+              </p>
+            </div>
+          )}
+
+          {error && !success && !lockoutSeconds && (
             <div className="mb-4 p-3 bg-red-900/20 border border-red-700/50 rounded-lg">
               <p className="text-red-400 text-sm text-center">{error}</p>
             </div>
@@ -233,7 +260,7 @@ export default function VerifyOTPPage() {
           {/* Verify Button */}
           <button
             onClick={handleVerify}
-            disabled={isLoading || success || otp.join('').length !== 6}
+            disabled={isLoading || success || otp.join('').length !== 6 || lockoutSeconds > 0}
             className="btn-primary w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed text-white py-3 rounded-lg font-semibold mb-4 transition-all duration-300"
           >
             {isLoading ? (

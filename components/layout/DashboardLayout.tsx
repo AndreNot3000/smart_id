@@ -51,7 +51,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
@@ -72,7 +72,7 @@ export default function DashboardLayout({
       />
 
       {/* Main Content */}
-      <div className="lg:ml-64">
+      <div className="lg:ml-64 h-screen overflow-y-auto">
         {/* Header */}
         <DashboardHeader
           title={activeSection.replace('-', ' ')}

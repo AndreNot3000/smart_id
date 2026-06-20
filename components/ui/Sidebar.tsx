@@ -63,7 +63,7 @@ export default function Sidebar({
   };
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800/95 backdrop-blur-sm border-r border-slate-700/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+    <div className={`fixed inset-y-0 left-0 z-50 w-64 h-screen flex flex-col bg-slate-800/95 backdrop-blur-sm border-r border-slate-700/50 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
         <Link href="/" className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -100,7 +100,7 @@ export default function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="p-4 max-h-96 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto p-4 min-h-0">
         <ul className="space-y-1">
           {menuItems.map((item) => (
             <li key={item.id}>
@@ -124,7 +124,7 @@ export default function Sidebar({
       </nav>
 
       {/* Logout */}
-      <div className="absolute bottom-4 left-4 right-4">
+      <div className="shrink-0 p-4 border-t border-slate-700/50">
         <Link href="/" className="flex items-center space-x-3 px-4 py-3 text-slate-300 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors">
           <span className="text-lg">🚪</span>
           <span>Logout</span>

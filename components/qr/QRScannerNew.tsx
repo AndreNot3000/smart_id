@@ -232,7 +232,7 @@ export default function QRScannerNew({ className = "" }: { className?: string })
                 idValue: (isLecturer ? u.lecturerId : u.studentId) || "",
                 department: u.department || "",
                 subtitle: isLecturer
-                  ? [u.role, u.specialization].filter(Boolean).join(" · ")
+                  ? [u.title || u.role, u.specialization].filter(Boolean).join(" · ")
                   : u.year || "",
                 avatar: u.avatar || null,
                 email: u.email || "",

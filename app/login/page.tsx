@@ -11,6 +11,13 @@ interface InstitutionOption {
   code: string;
 }
 
+function formatCountdown(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  if (m > 0) return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${s}s`;
+}
+
 // First Login Password Change Modal Component
 function FirstLoginModal({ isOpen, onClose, onPasswordChange, loading, fieldErrors, setFieldErrors }: {
   isOpen: boolean;
@@ -219,7 +226,11 @@ export default function LoginPage() {
     institutionCode: ""
   });
   const [error, setError] = useState("");
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
   const [firstLoginData, setFirstLoginData] = useState<any>(null);
@@ -250,6 +261,15 @@ export default function LoginPage() {
       cancelled = true;
     };
   }, []);
+
+  // Live countdown after a 429 rate-limit response.
+  useEffect(() => {
+    if (rateLimitSeconds <= 0) return;
+    const timer = window.setInterval(() => {
+      setRateLimitSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [rateLimitSeconds]);
 
   // An email login requires an institution; an ID login (contains no "@") does not.
   const isEmailLogin = formData.emailOrId.includes("@");
@@ -298,11 +318,26 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfter =
+            typeof data.retryAfter === "number" && data.retryAfter > 0
+              ? data.retryAfter
+              : 60;
+          setRateLimitSeconds(retryAfter);
+          return;
+        }
         // Handle specific error cases
         if (data.requiresVerification) {
           throw new Error(data.error || "Please verify your email before logging in");
         }
         throw new Error(data.error || data.message || "Login failed");
+      }
+
+      if (data.requiresMfa && data.mfaToken) {
+        setMfaRequired(true);
+        setMfaToken(data.mfaToken);
+        setLoading(false);
+        return;
       }
 
       // Clear any existing localStorage data to prevent conflicts,
@@ -331,6 +366,49 @@ export default function LoginPage() {
       redirectToDashboard(data.user.userType);
     } catch (err: any) {
       setError(err.message || "An error occurred during login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!mfaToken) {
+      setError("MFA session expired. Please log in again.");
+      setMfaRequired(false);
+      return;
+    }
+    if (mfaCode.trim().length < 6) {
+      setError("Enter your 6-digit authentication code.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch(getApiUrl("/api/auth/verify-mfa"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mfaToken, code: mfaCode.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Failed to verify MFA");
+      }
+
+      const apiOverride = localStorage.getItem(API_BASE_OVERRIDE_KEY);
+      localStorage.clear();
+      if (apiOverride) localStorage.setItem(API_BASE_OVERRIDE_KEY, apiOverride);
+
+      sessionStorage.setItem("accessToken", data.accessToken);
+      sessionStorage.setItem("refreshToken", data.refreshToken);
+      sessionStorage.setItem("user", JSON.stringify(data.user));
+
+      setMfaRequired(false);
+      setMfaToken(null);
+      setMfaCode("");
+      redirectToDashboard(data.user.userType);
+    } catch (err: any) {
+      setError(err.message || "Invalid authentication code");
     } finally {
       setLoading(false);
     }
@@ -369,6 +447,12 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
+
+      // The password change bumped tokenVersion server-side, so the tokens we
+      // logged in with are now stale. Swap in the fresh pair the API returned so
+      // this session keeps working without a re-login.
+      if (data.accessToken) sessionStorage.setItem("accessToken", data.accessToken);
+      if (data.refreshToken) sessionStorage.setItem("refreshToken", data.refreshToken);
 
       // Update user data to clear isFirstLogin flag
       const updatedUser = { ...firstLoginData.user, isFirstLogin: false };
@@ -418,13 +502,24 @@ export default function LoginPage() {
           </div>
 
           <div className="bg-slate-800/50 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
+            <form onSubmit={mfaRequired ? handleVerifyMfa : handleSubmit} className="space-y-6">
+              {rateLimitSeconds > 0 && (
+                <div className="bg-amber-500/10 border border-amber-500/50 text-amber-300 px-4 py-3 rounded-lg text-sm">
+                  Too many failed login attempts. Try again in{" "}
+                  <span className="font-mono font-semibold text-amber-200">
+                    {formatCountdown(rateLimitSeconds)}
+                  </span>
+                  .
+                </div>
+              )}
+
+              {error && !rateLimitSeconds && (
                 <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
                   {error}
                 </div>
               )}
 
+              {!mfaRequired && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   User Type
@@ -439,7 +534,9 @@ export default function LoginPage() {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              )}
 
+              {!mfaRequired && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Institution {isEmailLogin && <span className="text-red-400">*</span>}
@@ -476,7 +573,9 @@ export default function LoginPage() {
                   Signing in with your ID instead of email? You can leave this blank.
                 </p>
               </div>
+              )}
 
+              {!mfaRequired && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   {formData.userType === 'student' ? 'Email or Student ID' : 
@@ -496,7 +595,9 @@ export default function LoginPage() {
                   }
                 />
               </div>
+              )}
 
+              {!mfaRequired && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Password
@@ -528,6 +629,27 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+              )}
+
+              {mfaRequired && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Authentication code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter 6-digit code"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Enter the 6-digit code from your authenticator app (or a backup code).
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center text-slate-300">
@@ -541,10 +663,16 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || rateLimitSeconds > 0}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? "Signing in..." : "Sign In"}
+                {loading
+                  ? "Signing in..."
+                  : rateLimitSeconds > 0
+                    ? `Try again in ${formatCountdown(rateLimitSeconds)}`
+                    : mfaRequired
+                      ? "Verify code"
+                      : "Sign In"}
               </button>
             </form>
 

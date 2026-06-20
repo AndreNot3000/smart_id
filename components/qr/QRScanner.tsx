@@ -478,10 +478,10 @@ export default function QRScanner({ className = '' }: QRScannerProps) {
                   </div>
                 )}
                 
-                {scannedUser.userType === 'lecturer' && scannedUser.userInfo.role && (
+                {scannedUser.userType === 'lecturer' && (scannedUser.userInfo.title || scannedUser.userInfo.role) && (
                   <div className="flex justify-between items-center p-3 bg-slate-700/30 rounded-lg">
-                    <span className="text-slate-400">Role:</span>
-                    <span className="text-white">{scannedUser.userInfo.role}</span>
+                    <span className="text-slate-400">Title:</span>
+                    <span className="text-white">{scannedUser.userInfo.title || scannedUser.userInfo.role}</span>
                   </div>
                 )}
                 

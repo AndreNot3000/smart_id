@@ -96,6 +96,7 @@ export const qrService = {
       email: string;
       department: string;
       year?: string;
+      title?: string;
       role?: string;
       specialization?: string;
       avatar: string;

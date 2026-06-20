@@ -5,10 +5,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell, Icon, StatCard, type NavItem } from "@/components/dashboard";
 import type { TourStep } from "@/lib/tour";
+import DepartmentCombobox from "@/components/ui/DepartmentCombobox";
+import { formatLecturerDisplayName } from "@/lib/lecturerTitle";
 import QRScannerNew from "@/components/qr/QRScannerNew";
 import AttendanceHistory from "@/components/qr/AttendanceHistory";
 import { AdminAttendanceOverview } from "@/components/attendance";
-import { GradeScaleSettings } from "@/components/admin";
+import { AdminMfaSettings, GradeScaleSettings } from "@/components/admin";
 import { AdminReports } from "@/components/reports";
 import { getApiUrl } from "@/lib/config";
 import { enforceRole } from "@/lib/session";
@@ -55,7 +57,7 @@ interface Lecturer {
   firstName: string;
   lastName: string;
   department: string;
-  role: string;
+  title: string;
   specialization: string;
   status: string;
   emailVerified: boolean;
@@ -123,6 +125,8 @@ export default function AdminDashboard() {
   const [courseForm, setCourseForm] = useState({ courseCode: '', courseName: '', description: '', credits: 3, department: '', level: '100L', semester: 'First' });
   const [courseError, setCourseError] = useState('');
   const [courseSuccess, setCourseSuccess] = useState('');
+  const [userActionMessage, setUserActionMessage] = useState('');
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [assigningCourse, setAssigningCourse] = useState<any>(null);
 
   // Fetch all dashboard data
@@ -271,6 +275,92 @@ export default function AdminDashboard() {
       });
       if (response.ok) { fetchAdminCourses(); setCourseSuccess('Course deleted'); setTimeout(() => setCourseSuccess(''), 3000); }
     } catch (error) { console.error('Error deleting course:', error); }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const [studentsRes, lecturersRes, statsRes] = await Promise.all([
+        fetch(getApiUrl('/api/admin/students'), {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        }),
+        fetch(getApiUrl('/api/admin/lecturers'), {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        }),
+        fetch(getApiUrl('/api/users/dashboard-stats'), {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        }),
+      ]);
+      if (studentsRes.ok) {
+        const data: StudentsResponse = await studentsRes.json();
+        setStudents(data.students);
+      }
+      if (lecturersRes.ok) {
+        const data: LecturersResponse = await lecturersRes.json();
+        setLecturers(data.lecturers);
+      }
+      if (statsRes.ok) {
+        const statsData: DashboardStats = await statsRes.json();
+        setDashboardStats(statsData);
+      }
+    } catch (error) {
+      console.error('Error refreshing users:', error);
+    }
+  };
+
+  const handleDeleteStudent = async (student: Student) => {
+    const name = `${student.firstName} ${student.lastName}`;
+    if (!confirm(`Delete student "${name}" (${student.studentId})? This cannot be undone.`)) return;
+    setDeletingUserId(student.id);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const response = await fetch(getApiUrl(`/api/admin/students/${student.id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data.error || 'Failed to delete student');
+        return;
+      }
+      setUserActionMessage('Student deleted');
+      await fetchUsers();
+      setTimeout(() => setUserActionMessage(''), 3000);
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      alert('Failed to delete student');
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  const handleDeleteLecturer = async (lecturer: Lecturer) => {
+    const name = `${lecturer.firstName} ${lecturer.lastName}`;
+    if (!confirm(`Delete lecturer "${name}" (${lecturer.lecturerId})? They will be removed from assigned courses. This cannot be undone.`)) return;
+    setDeletingUserId(lecturer.id);
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) return;
+      const response = await fetch(getApiUrl(`/api/admin/lecturers/${lecturer.id}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        alert(data.error || 'Failed to delete lecturer');
+        return;
+      }
+      setUserActionMessage('Lecturer deleted');
+      await fetchUsers();
+      setTimeout(() => setUserActionMessage(''), 3000);
+    } catch (error) {
+      console.error('Error deleting lecturer:', error);
+      alert('Failed to delete lecturer');
+    } finally {
+      setDeletingUserId(null);
+    }
   };
 
   const toggleLecturerAssignment = async (courseId: string, lecturerId: string, currentIds: string[]) => {
@@ -609,6 +699,11 @@ export default function AdminDashboard() {
 
           {activeSection === 'students' && (
             <div className="space-y-6">
+              {userActionMessage && (
+                <div className="bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-3 rounded-lg text-sm">
+                  {userActionMessage}
+                </div>
+              )}
               <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-white">Student Management</h2>
@@ -664,8 +759,19 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         
-                        <div className="mt-3 pt-3 border-t border-slate-600">
+                        <div className="mt-3 pt-3 border-t border-slate-600 flex items-center justify-between gap-2">
                           <span className="text-slate-400 text-xs">Created: {new Date(student.createdAt).toLocaleDateString()}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStudent(student)}
+                            disabled={deletingUserId === student.id}
+                            className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            title="Delete student"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     ))
@@ -681,6 +787,11 @@ export default function AdminDashboard() {
 
           {activeSection === 'lecturers' && (
             <div className="space-y-6">
+              {userActionMessage && (
+                <div className="bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-3 rounded-lg text-sm">
+                  {userActionMessage}
+                </div>
+              )}
               <div className="bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-bold text-white">Lecturer Management</h2>
@@ -725,8 +836,8 @@ export default function AdminDashboard() {
                             <span className="text-white">{lecturer.department}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-400">Role:</span>
-                            <span className="text-white">{lecturer.role}</span>
+                            <span className="text-slate-400">Title:</span>
+                            <span className="text-white">{lecturer.title}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Specialization:</span>
@@ -740,8 +851,19 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                         
-                        <div className="mt-3 pt-3 border-t border-slate-600">
+                        <div className="mt-3 pt-3 border-t border-slate-600 flex items-center justify-between gap-2">
                           <span className="text-slate-400 text-xs">Created: {new Date(lecturer.createdAt).toLocaleDateString()}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLecturer(lecturer)}
+                            disabled={deletingUserId === lecturer.id}
+                            className="text-red-400 hover:text-red-300 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                            title="Delete lecturer"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
                     ))
@@ -811,19 +933,12 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <label className="block text-xs text-slate-400 mb-1">Department <span className="text-red-400">*</span></label>
-                        <select value={courseForm.department} onChange={(e) => setCourseForm(prev => ({...prev, department: e.target.value}))} className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50">
-                          <option value="">Select department...</option>
-                          <option value="Computer Science">Computer Science</option>
-                          <option value="Mathematics">Mathematics</option>
-                          <option value="Physics">Physics</option>
-                          <option value="Chemistry">Chemistry</option>
-                          <option value="Biology">Biology</option>
-                          <option value="Engineering">Engineering</option>
-                          <option value="Business Administration">Business Administration</option>
-                          <option value="Psychology">Psychology</option>
-                          <option value="English Literature">English Literature</option>
-                          <option value="History">History</option>
-                        </select>
+                        <DepartmentCombobox
+                          value={courseForm.department}
+                          onChange={(v) => setCourseForm(prev => ({ ...prev, department: v }))}
+                          accent="purple"
+                          compact
+                        />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -934,7 +1049,13 @@ export default function AdminDashboard() {
                             const names = ids
                               .map((id) => {
                                 const lec = lecturers.find((l) => l.id === id);
-                                return lec ? `${lec.role ? lec.role + ' ' : ''}${lec.firstName} ${lec.lastName}`.trim() : null;
+                                return lec
+                                  ? formatLecturerDisplayName({
+                                      title: lec.title,
+                                      firstName: lec.firstName,
+                                      lastName: lec.lastName,
+                                    })
+                                  : null;
                               })
                               .filter(Boolean) as string[];
                             if (names.length === 0) {
@@ -978,9 +1099,27 @@ export default function AdminDashboard() {
             />
           )}
 
-          {/* Settings Section — grading scale editor */}
+          {/* Settings Section */}
           {activeSection === 'settings' && (
-            <GradeScaleSettings />
+            <div className="space-y-6">
+              <div className="flex items-start gap-3">
+                <div
+                  className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0"
+                  style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+                >
+                  <Icon name="settings" size={20} />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-[var(--text-primary)] text-xl font-semibold tracking-tight">Settings</h2>
+                  <p className="text-[var(--text-muted)] text-sm mt-1">
+                    Security and institution-wide configuration.
+                  </p>
+                </div>
+              </div>
+
+              <AdminMfaSettings />
+              <GradeScaleSettings />
+            </div>
           )}
 
           {/* Reports & Analytics Section */}
@@ -1115,15 +1254,16 @@ function UserCreationModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'reissue' | 'taken'>('idle');
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     department: '',
     year: '',
-    role: '',
+    title: '',
     specialization: ''
   });
 
@@ -1136,13 +1276,14 @@ function UserCreationModal({
         email: '',
         department: '',
         year: '',
-        role: '',
+        title: '',
         specialization: ''
       });
       setError('');
       setEmailError('');
       setEmailStatus('idle');
       setSuccess(false);
+      setSuccessMessage('');
     }
   }, [isOpen, userType]);
 
@@ -1163,12 +1304,15 @@ function UserCreationModal({
       try {
         const token = sessionStorage.getItem('accessToken');
         const res = await fetch(
-          getApiUrl(`/api/admin/check-email?email=${encodeURIComponent(email)}`),
+          getApiUrl(`/api/admin/check-email?email=${encodeURIComponent(email)}&userType=${userType}`),
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await res.json();
         if (cancelled) return;
-        if (data.available) {
+        if (data.available && data.reissue) {
+          setEmailStatus('reissue');
+          setEmailError(data.message || 'Activation will be resent for this pending account.');
+        } else if (data.available) {
           setEmailStatus('available');
           setEmailError('');
         } else if (data.valid) {
@@ -1187,7 +1331,7 @@ function UserCreationModal({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [formData.email]);
+  }, [formData.email, userType]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -1229,7 +1373,7 @@ function UserCreationModal({
       if (userType === 'student') {
         requestBody.year = formData.year;
       } else {
-        requestBody.role = formData.role;
+        requestBody.title = formData.title;
         requestBody.specialization = formData.specialization;
       }
 
@@ -1259,6 +1403,11 @@ function UserCreationModal({
       }
 
       setSuccess(true);
+      setSuccessMessage(
+        data.reissued
+          ? data.message || 'Activation email resent. The previous link is no longer valid.'
+          : `Activation email sent to ${formData.email}`,
+      );
       setTimeout(() => {
         onClose();
         onSuccess();
@@ -1294,8 +1443,10 @@ function UserCreationModal({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h4 className="text-xl font-bold text-white mb-2">{userType === 'student' ? 'Student' : 'Lecturer'} Created Successfully!</h4>
-            <p className="text-slate-300">Activation email sent to {formData.email}</p>
+            <h4 className="text-xl font-bold text-white mb-2">
+              {successMessage.includes('resent') ? 'Activation Resent' : `${userType === 'student' ? 'Student' : 'Lecturer'} Created Successfully!`}
+            </h4>
+            <p className="text-slate-300">{successMessage}</p>
           </div>
         ) : (
           <>
@@ -1353,6 +1504,8 @@ function UserCreationModal({
                       ? 'border-red-500 focus:ring-red-500'
                       : emailStatus === 'available'
                         ? 'border-green-500 focus:ring-green-500'
+                        : emailStatus === 'reissue'
+                          ? 'border-amber-500 focus:ring-amber-500'
                         : 'border-slate-600 focus:ring-blue-500'
                   }`}
                   placeholder={userType === 'student' ? 'john.doe@university.edu' : 'prof.doe@university.edu'}
@@ -1362,6 +1515,9 @@ function UserCreationModal({
                 )}
                 {emailStatus === 'available' && (
                   <p className="mt-1 text-xs text-green-400">✓ Email is available</p>
+                )}
+                {emailStatus === 'reissue' && emailError && (
+                  <p className="mt-1 text-xs text-amber-400">{emailError}</p>
                 )}
                 {emailStatus === 'taken' && emailError && (
                   <p className="mt-1 text-xs text-red-400">{emailError}</p>
@@ -1385,25 +1541,16 @@ function UserCreationModal({
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Department <span className="text-red-400">*</span>
                 </label>
-                <select
-                  name="department"
+                <DepartmentCombobox
                   value={formData.department}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select department...</option>
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Physics">Physics</option>
-                  <option value="Chemistry">Chemistry</option>
-                  <option value="Biology">Biology</option>
-                  <option value="Engineering">Engineering</option>
-                  <option value="Business Administration">Business Administration</option>
-                  <option value="Psychology">Psychology</option>
-                  <option value="English Literature">English Literature</option>
-                  <option value="History">History</option>
-                </select>
+                  onChange={(v) => {
+                    setFormData((prev) => ({ ...prev, department: v }));
+                    setError('');
+                  }}
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Search the list, or type a department that isn&apos;t listed to add it.
+                </p>
               </div>
 
               {userType === 'student' ? (
@@ -1430,16 +1577,16 @@ function UserCreationModal({
                 <>
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Role <span className="text-red-400">*</span>
+                      Title <span className="text-red-400">*</span>
                     </label>
                     <select
-                      name="role"
-                      value={formData.role}
+                      name="title"
+                      value={formData.title}
                       onChange={handleInputChange}
                       required
                       className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">Select role...</option>
+                      <option value="">Select title...</option>
                       <option value="Prof">Prof</option>
                       <option value="Dr">Dr</option>
                       <option value="Mr">Mr</option>

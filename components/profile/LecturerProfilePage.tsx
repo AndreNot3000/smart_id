@@ -41,7 +41,7 @@ export default function LecturerProfilePage({ onProfileUpdate }: { onProfileUpda
         department: data.profile.department || '',
         year: data.profile.year || '',
         specialization: data.profile.specialization || '',
-        title: data.profile.title || '',
+        title: data.profile.title || data.profile.role || '',
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load profile');
@@ -92,7 +92,7 @@ export default function LecturerProfilePage({ onProfileUpdate }: { onProfileUpda
         department: profile.profile.department || '',
         year: profile.profile.year || '',
         specialization: profile.profile.specialization || '',
-        title: profile.profile.title || '',
+        title: profile.profile.title || profile.profile.role || '',
       });
     }
   };
@@ -255,7 +255,7 @@ export default function LecturerProfilePage({ onProfileUpdate }: { onProfileUpda
                     ))}
                   </select>
                 ) : (
-                  <p className="text-white font-medium py-2.5">{profile.profile.title || '-'}</p>
+                  <p className="text-white font-medium py-2.5">{profile.profile.title || profile.profile.role || '-'}</p>
                 )}
               </div>
 

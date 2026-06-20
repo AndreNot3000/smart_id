@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getApiUrl } from "@/lib/config";
 
+function formatCountdown(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  if (m > 0) return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${s}s`;
+}
+
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -14,6 +21,7 @@ export default function ResetPasswordPage() {
     confirmPassword: ""
   });
   const [error, setError] = useState("");
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -26,6 +34,14 @@ export default function ResetPasswordPage() {
       setFormData(prev => ({ ...prev, email: savedEmail }));
     }
   }, []);
+
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const id = setInterval(() => {
+      setLockoutSeconds((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [lockoutSeconds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +73,9 @@ export default function ResetPasswordPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 429 && typeof data.retryAfter === 'number' && data.retryAfter > 0) {
+          setLockoutSeconds(data.retryAfter);
+        }
         throw new Error(data.error || data.message || "Failed to reset password");
       }
 
@@ -105,7 +124,13 @@ export default function ResetPasswordPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
+              {lockoutSeconds > 0 && (
+                <div className="bg-amber-500/10 border border-amber-500/50 text-amber-400 px-4 py-3 rounded-lg text-sm">
+                  Too many incorrect attempts. Try again in {formatCountdown(lockoutSeconds)} or request a new code.
+                </div>
+              )}
+
+              {error && !lockoutSeconds && (
                 <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
                   {error}
                 </div>
@@ -206,7 +231,7 @@ export default function ResetPasswordPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || lockoutSeconds > 0}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? "Resetting..." : "Reset Password"}

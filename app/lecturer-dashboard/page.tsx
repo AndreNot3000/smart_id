@@ -15,6 +15,7 @@ import { LecturerGradebook } from "@/components/grades";
 import { LecturerReports } from "@/components/reports";
 import { getApiUrl } from "@/lib/config";
 import { enforceRole } from "@/lib/session";
+import { formatLecturerDisplayName } from "@/lib/lecturerTitle";
 import { validateScheduleNotInPast, validateScheduleTimeRange } from "@/lib/scheduleTime";
 
 // API Response Types
@@ -28,7 +29,8 @@ interface LecturerProfile {
     lastName: string;
     lecturerId: string;
     department: string;
-    role: string;
+    role?: string;
+    title?: string;
     specialization: string;
     avatar: string;
     universityName: string;
@@ -193,8 +195,8 @@ export default function LecturerDashboard() {
     email: '',
     university: '',
     department: '',
-    title: '',
-    role: '',
+    displayTitle: '',
+    honorific: '',
     specialization: '',
     officeHours: 'Mon-Wed 2:00-4:00 PM',
     avatar: '',
@@ -271,8 +273,8 @@ export default function LecturerDashboard() {
             email: profileData.email,
             university: profileData.profile.universityName,
             department: profileData.profile.department,
-            title: `${profileData.profile.role}. ${profileData.profile.firstName} ${profileData.profile.lastName}`,
-            role: profileData.profile.role,
+            displayTitle: formatLecturerDisplayName(profileData.profile),
+            honorific: profileData.profile.title || profileData.profile.role || '',
             specialization: profileData.profile.specialization,
             officeHours: 'Mon-Wed 2:00-4:00 PM',
             avatar: profileData.profile.avatar,
@@ -307,8 +309,8 @@ export default function LecturerDashboard() {
         ...prev,
         name: `${profileData.profile.firstName} ${profileData.profile.lastName}`,
         department: profileData.profile.department,
-        title: `${profileData.profile.role}. ${profileData.profile.firstName} ${profileData.profile.lastName}`,
-        role: profileData.profile.role,
+        displayTitle: formatLecturerDisplayName(profileData.profile),
+        honorific: profileData.profile.title || profileData.profile.role || '',
         specialization: profileData.profile.specialization,
         avatar: profileData.profile.avatar,
       }));
@@ -1823,7 +1825,7 @@ export default function LecturerDashboard() {
         pageSubtitle={lecturerData.department}
         user={{
           name: lecturerData.name,
-          subtitle: lecturerData.title,
+          subtitle: lecturerData.displayTitle,
           secondary: lecturerData.department,
           avatar: lecturerData.avatar,
           initials: lecturerData.name
@@ -3244,7 +3246,7 @@ export default function LecturerDashboard() {
                     </div>
                     <div>
                       <p className="text-slate-400 text-sm">Title</p>
-                      <p className="text-white text-sm sm:text-base">{lecturerData.title}</p>
+                      <p className="text-white text-sm sm:text-base">{lecturerData.displayTitle}</p>
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">

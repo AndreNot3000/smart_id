@@ -13,6 +13,10 @@ import QuizTaker from "@/components/quiz/QuizTaker";
 import RichTextEditor from "@/components/editor/RichTextEditor";
 import { getApiUrl } from "@/lib/config";
 import { enforceRole } from "@/lib/session";
+
+function getScaleMax(gpaData: { gradeScale?: { scaleMax?: number }; scaleMax?: number } | null): number {
+  return gpaData?.gradeScale?.scaleMax ?? gpaData?.scaleMax ?? 5.0;
+}
 import { profileService } from "@/lib/profileService";
 
 // Types for API responses
@@ -799,13 +803,13 @@ export default function TestDashboard() {
     return () => clearInterval(interval);
   }, [activeSection]);
 
-  // Keep the CGPA live: fetch on the overview/grades sections + poll so it
-  // reflects new grading in near real time. Recomputed server-side each call.
+  // Keep the CGPA live: always refetch when opening overview/grades so admin
+  // grading-scale changes show up without a full page reload.
   useEffect(() => {
     if (activeSection !== 'dashboard' && activeSection !== 'grades') return;
-    if (!gpaData) setLoadingGpa(true);
+    setLoadingGpa(true);
     fetchGpa();
-    const interval = setInterval(fetchGpa, 30000);
+    const interval = setInterval(fetchGpa, 15000);
     return () => clearInterval(interval);
   }, [activeSection]);
 
@@ -1138,7 +1142,7 @@ export default function TestDashboard() {
   // Calculate academic stats
   const academicStats = studentData ? {
     gpa: gpaData?.cgpa ?? null,
-    scaleMax: gpaData?.scaleMax ?? 5.0,
+    scaleMax: getScaleMax(gpaData),
     gpaLabel: gpaData?.label ?? '',
     creditsEarned: gpaData?.creditsEarned ?? 0,
     totalCredits: gpaData?.totalCredits ?? 0,
@@ -1146,7 +1150,7 @@ export default function TestDashboard() {
     walletBalance: walletBalance
   } : {
     gpa: null,
-    scaleMax: 5.0,
+    scaleMax: getScaleMax(gpaData),
     gpaLabel: '',
     creditsEarned: 0,
     totalCredits: 0,
@@ -2706,7 +2710,7 @@ export default function TestDashboard() {
                         {gpaData.label}
                       </span>
                     )}
-                    <span className="text-[var(--text-muted)]">of {(gpaData?.scaleMax ?? 5).toFixed(1)}</span>
+                    <span className="text-[var(--text-muted)]">of {getScaleMax(gpaData).toFixed(1)}</span>
                   </div>
                 </div>
                 <div className="section-card">
@@ -2757,7 +2761,8 @@ export default function TestDashboard() {
                 ) : (
                   <div className="space-y-3">
                     {gpaData.completed.map((co: any, idx: number) => {
-                      const ratio = (gpaData?.scaleMax ?? 5) > 0 ? co.point / (gpaData.scaleMax ?? 5) : 0;
+                      const scaleMax = getScaleMax(gpaData);
+                      const ratio = scaleMax > 0 ? co.point / scaleMax : 0;
                       const accent = ratio >= 0.8 ? 'var(--success)' : ratio >= 0.5 ? 'var(--info)' : 'var(--warning)';
                       return (
                         <div key={idx} className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-lg"
@@ -2806,6 +2811,40 @@ export default function TestDashboard() {
                         </span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {gpaData?.gradeScale?.bands?.length > 0 && (
+                <div className="section-card">
+                  <h3 className="section-title">Grading scale</h3>
+                  <p className="section-subtitle">
+                    Your institution uses a maximum grade point of {getScaleMax(gpaData).toFixed(1)}.
+                    Course percentages map to these bands — your GPA is computed from the grade points below.
+                  </p>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-[var(--text-muted)] border-b border-slate-700/50">
+                          <th className="py-2 pr-4 font-medium">Score range (%)</th>
+                          <th className="py-2 pr-4 font-medium">Letter</th>
+                          <th className="py-2 font-medium">Grade point</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...gpaData.gradeScale.bands]
+                          .sort((a: { min: number }, b: { min: number }) => b.min - a.min)
+                          .map((band: { min: number; max: number; letter: string; point: number }, idx: number) => (
+                            <tr key={idx} className="border-b border-slate-700/30 last:border-0">
+                              <td className="py-2.5 pr-4 text-[var(--text-primary)] tabular-nums">
+                                {band.min}–{Number.isInteger(band.max) ? band.max : band.max.toFixed(1)}
+                              </td>
+                              <td className="py-2.5 pr-4 font-semibold text-[var(--text-primary)]">{band.letter}</td>
+                              <td className="py-2.5 text-[var(--text-primary)] tabular-nums">{band.point}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}

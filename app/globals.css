@@ -74,7 +74,9 @@ body {
    Dashboard shell primitives
    ============================================================ */
 .app-shell {
+  height: 100dvh;
   min-height: 100vh;
+  overflow: hidden;
   background:
     radial-gradient(1200px 600px at 80% -200px, rgba(99, 102, 241, 0.08), transparent 60%),
     var(--app-bg);
@@ -83,6 +85,7 @@ body {
 .app-sidebar {
   background: var(--surface-0);
   border-right: 1px solid var(--border-subtle);
+  height: 100%;
 }
 
 .app-topbar {

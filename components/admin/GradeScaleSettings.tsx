@@ -166,8 +166,9 @@ export default function GradeScaleSettings() {
           </div>
         </div>
 
-        {/* Bands table */}
-        <div className="space-y-2">
+        {/* Bands */}
+        <div className="space-y-3">
+          {/* Desktop header */}
           <div className="hidden sm:grid grid-cols-12 gap-2 px-1 text-xs text-[var(--text-muted)] font-medium">
             <div className="col-span-3">Min score (%)</div>
             <div className="col-span-3">Max score (%)</div>
@@ -177,32 +178,87 @@ export default function GradeScaleSettings() {
           </div>
 
           {scale?.bands.map((b, idx) => (
-            <div key={idx} className="grid grid-cols-2 sm:grid-cols-12 gap-2 items-center">
-              <div className="sm:col-span-3">
-                <label className="sm:hidden metric-label block mb-1">Min %</label>
-                <input type="number" min="0" max="100" className="input w-full"
-                       value={b.min} onChange={(e) => updateBand(idx, "min", e.target.value)} />
-              </div>
-              <div className="sm:col-span-3">
-                <label className="sm:hidden metric-label block mb-1">Max %</label>
-                <input type="number" min="0" max="100" className="input w-full"
-                       value={b.max} onChange={(e) => updateBand(idx, "max", e.target.value)} />
-              </div>
-              <div className="sm:col-span-3">
-                <label className="sm:hidden metric-label block mb-1">Letter</label>
-                <input type="text" maxLength={4} className="input w-full"
-                       value={b.letter} onChange={(e) => updateBand(idx, "letter", e.target.value)} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="sm:hidden metric-label block mb-1">Point</label>
-                <input type="number" step="0.1" min="0" className="input w-full"
-                       value={b.point} onChange={(e) => updateBand(idx, "point", e.target.value)} />
-              </div>
-              <div className="sm:col-span-1 flex justify-end">
-                <button type="button" onClick={() => removeBand(idx)}
-                        className="btn btn-ghost p-2" aria-label="Remove band">
+            <div
+              key={idx}
+              className="sm:grid sm:grid-cols-12 sm:gap-2 sm:items-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3 sm:p-0 sm:border-0 sm:bg-transparent"
+            >
+              {/* Mobile: band header */}
+              <div className="flex items-center justify-between gap-3 sm:hidden mb-3">
+                <div className="min-w-0">
+                  <p className="text-[var(--text-primary)] font-semibold text-sm truncate">
+                    Band {idx + 1}{b.letter?.trim() ? ` — ${b.letter.trim()}` : ""}
+                  </p>
+                  <p className="text-[var(--text-muted)] text-xs">
+                    {b.min}% to {b.max}% → {b.point} point{b.point === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeBand(idx)}
+                  className="btn btn-ghost p-2"
+                  aria-label="Remove band"
+                >
                   <Icon name="trash" size={16} />
                 </button>
+              </div>
+
+              {/* Fields */}
+              <div className="grid grid-cols-2 gap-3 sm:contents">
+                <div className="sm:col-span-3">
+                  <label className="metric-label block mb-1 sm:hidden">Min score (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="input w-full"
+                    value={b.min}
+                    onChange={(e) => updateBand(idx, "min", e.target.value)}
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="metric-label block mb-1 sm:hidden">Max score (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    className="input w-full"
+                    value={b.max}
+                    onChange={(e) => updateBand(idx, "max", e.target.value)}
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="metric-label block mb-1 sm:hidden">Letter</label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    className="input w-full"
+                    value={b.letter}
+                    onChange={(e) => updateBand(idx, "letter", e.target.value)}
+                    placeholder="A"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="metric-label block mb-1 sm:hidden">Grade point</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    className="input w-full"
+                    value={b.point}
+                    onChange={(e) => updateBand(idx, "point", e.target.value)}
+                  />
+                </div>
+                {/* Desktop: remove button */}
+                <div className="hidden sm:col-span-1 sm:flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => removeBand(idx)}
+                    className="btn btn-ghost p-2"
+                    aria-label="Remove band"
+                  >
+                    <Icon name="trash" size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}

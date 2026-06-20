@@ -42,7 +42,7 @@ export interface StudentProfile {
     // Lecturer-specific fields (present when userType === 'lecturer')
     lecturerId?: string;
     specialization?: string;
-    role?: string;
+    role?: string; // @deprecated legacy honorific — prefer title
     title?: string;
   };
   institutionId: string;
